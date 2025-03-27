@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -202,10 +201,10 @@ const Requests = () => {
                           <td className="px-4 py-3 text-sm">{request.nome_solicitante}</td>
                           <td className="px-4 py-3 text-sm">{request.centro_custo}</td>
                           <td className="px-4 py-3 text-sm">
-                            <StatusBadge status={request.status} />
+                            <StatusBadge type="status" value={request.status} />
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            <StatusBadge priority={request.prioridade} />
+                            <StatusBadge type="priority" value={request.prioridade} />
                           </td>
                         </tr>
                       ))}
