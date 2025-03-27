@@ -47,13 +47,18 @@ const Requests = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   
-  // Fetch requests data
+  // Fetch requests data with proper error handling
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ['requests'],
     queryFn: fetchRequests,
-    onError: (err) => {
-      console.error('Error fetching requests:', err);
-      toast.error('Erro ao carregar solicitações. Tente novamente mais tarde.');
+    // Using onSettled in meta for error handling instead of onError
+    meta: {
+      onSettled: (data: any, error: any) => {
+        if (error) {
+          console.error('Error fetching requests:', error);
+          toast.error('Erro ao carregar solicitações. Tente novamente mais tarde.');
+        }
+      }
     }
   });
   
@@ -197,10 +202,10 @@ const Requests = () => {
                           <td className="px-4 py-3 text-sm">{request.nome_solicitante}</td>
                           <td className="px-4 py-3 text-sm">{request.centro_custo}</td>
                           <td className="px-4 py-3 text-sm">
-                            <StatusBadge type="status" value={request.status} />
+                            <StatusBadge status={request.status} />
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            <StatusBadge type="priority" value={request.prioridade} />
+                            <StatusBadge priority={request.prioridade} />
                           </td>
                         </tr>
                       ))}
