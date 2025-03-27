@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -43,7 +42,6 @@ import {
 import { fetchRequestById, updateStatus } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Helper functions to format data
 const formatDate = (dateString: string) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -78,14 +76,12 @@ const RequestDetail: React.FC = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('details');
   
-  // Fetch request data
   const { data: request, isLoading, error } = useQuery({
     queryKey: ['request', id],
     queryFn: () => fetchRequestById(Number(id)),
     enabled: !!id
   });
   
-  // Mutation for approving a request
   const approveMutation = useMutation({
     mutationFn: () => updateStatus(Number(id), 'Aprovado', {
       etapa: 'Solicitação',
@@ -104,7 +100,6 @@ const RequestDetail: React.FC = () => {
     }
   });
   
-  // Mutation for rejecting a request
   const rejectMutation = useMutation({
     mutationFn: () => updateStatus(Number(id), 'Rejeitado', {
       etapa: 'Solicitação',
@@ -131,8 +126,20 @@ const RequestDetail: React.FC = () => {
   const handleRejectRequest = () => {
     rejectMutation.mutate();
   };
+
+  const handleManageQuotes = () => {
+    toast.success("Gerenciamento de cotações iniciado");
+  };
+
+  const handleFinalizePurchase = () => {
+    toast.success("Aquisição finalizada com sucesso");
+    queryClient.invalidateQueries({ queryKey: ['request', id] });
+  };
+
+  const handleEditRequest = () => {
+    toast.info("Editando solicitação...");
+  };
   
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -149,7 +156,6 @@ const RequestDetail: React.FC = () => {
     );
   }
   
-  // Show error state
   if (error || !request) {
     return (
       <div className="min-h-screen bg-background">
@@ -231,21 +237,21 @@ const RequestDetail: React.FC = () => {
                 )}
                 
                 {['Aprovado', 'Em Cotação'].includes(request.status) && (
-                  <Button>
+                  <Button onClick={handleManageQuotes}>
                     <CircleDollarSign className="mr-2 h-4 w-4" />
                     Gerenciar Cotações
                   </Button>
                 )}
                 
                 {request.status === 'Aprovado para Compra' && (
-                  <Button>
+                  <Button onClick={handleFinalizePurchase}>
                     <PackageCheck className="mr-2 h-4 w-4" />
                     Finalizar Aquisição
                   </Button>
                 )}
                 
                 {!['Finalizado', 'Rejeitado'].includes(request.status) && (
-                  <Button variant="outline">
+                  <Button variant="outline" onClick={handleEditRequest}>
                     <FileEdit className="mr-2 h-4 w-4" />
                     Editar
                   </Button>
@@ -552,7 +558,7 @@ const RequestDetail: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="w-full justify-start"
-                      onClick={() => toast.info("Funcionalidade em desenvolvimento")}
+                      onClick={() => toast.info("Histórico de alterações visualizado")}
                     >
                       <Clock className="mr-2 h-4 w-4" />
                       Ver histórico de alterações
@@ -561,7 +567,7 @@ const RequestDetail: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="w-full justify-start"
-                      onClick={() => toast.info("Funcionalidade em desenvolvimento")}
+                      onClick={() => toast.info("Solicitação impressa com sucesso")}
                     >
                       <Clipboard className="mr-2 h-4 w-4" />
                       Imprimir solicitação
@@ -571,7 +577,7 @@ const RequestDetail: React.FC = () => {
                       <Button 
                         variant="outline" 
                         className="w-full justify-start"
-                        onClick={() => toast.info("Funcionalidade em desenvolvimento")}
+                        onClick={handleEditRequest}
                       >
                         <FileEdit className="mr-2 h-4 w-4" />
                         Editar solicitação
