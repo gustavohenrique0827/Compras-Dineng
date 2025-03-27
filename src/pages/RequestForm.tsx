@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
@@ -94,7 +94,11 @@ const RequestForm: React.FC = () => {
     },
   });
 
-  const { fields, append, remove } = form.control._formValues.items;
+  // Use useFieldArray instead of accessing control._formValues directly
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "items"
+  });
 
   // Submit handler
   const onSubmit = async (data: FormValues) => {
@@ -300,8 +304,8 @@ const RequestForm: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {form.watch("items")?.map((item, index) => (
-                        <div key={index} className="flex items-start gap-4">
+                      {fields.map((item, index) => (
+                        <div key={item.id} className="flex items-start gap-4">
                           <div className="flex-1">
                             <FormField
                               control={form.control}

@@ -25,8 +25,8 @@ const Requests = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
   
   // Apply filters to the list of requests
   const filteredRequests = mockRequests.filter(request => {
@@ -36,8 +36,8 @@ const Requests = () => {
       request.costCenter.toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(request.id).includes(searchTerm);
     
-    const matchesStatus = statusFilter ? request.status === statusFilter : true;
-    const matchesPriority = priorityFilter ? request.priority === priorityFilter : true;
+    const matchesStatus = statusFilter === 'all' ? true : request.status === statusFilter;
+    const matchesPriority = priorityFilter === 'all' ? true : request.priority === priorityFilter;
     
     return matchesSearch && matchesStatus && matchesPriority;
   });
@@ -84,7 +84,7 @@ const Requests = () => {
                         </div>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos</SelectItem>
+                        <SelectItem value="all">Todos</SelectItem>
                         <SelectItem value="Solicitado">Solicitado</SelectItem>
                         <SelectItem value="Aprovado">Aprovado</SelectItem>
                         <SelectItem value="Em Cotação">Em Cotação</SelectItem>
@@ -103,7 +103,7 @@ const Requests = () => {
                         </div>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todas</SelectItem>
+                        <SelectItem value="all">Todas</SelectItem>
                         <SelectItem value="Urgente">Urgente</SelectItem>
                         <SelectItem value="Moderada">Moderada</SelectItem>
                         <SelectItem value="Básica">Básica</SelectItem>
