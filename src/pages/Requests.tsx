@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -22,6 +23,7 @@ import {
 import { fetchRequests } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
+import { Status, Priority } from '@/utils/mockData';
 
 // Type definition for a request
 interface Request {
@@ -201,10 +203,10 @@ const Requests = () => {
                           <td className="px-4 py-3 text-sm">{request.nome_solicitante}</td>
                           <td className="px-4 py-3 text-sm">{request.centro_custo}</td>
                           <td className="px-4 py-3 text-sm">
-                            <StatusBadge type="status" value={request.status} />
+                            <StatusBadge type="status" value={request.status as Status} />
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            <StatusBadge type="priority" value={request.prioridade} />
+                            <StatusBadge type="priority" value={request.prioridade as Priority} />
                           </td>
                         </tr>
                       ))}
