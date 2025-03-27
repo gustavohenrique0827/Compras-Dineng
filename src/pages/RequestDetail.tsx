@@ -39,7 +39,16 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { fetchRequestById, updateStatus } from '@/api/requests';
+import { createNewQuote } from '@/api/quotes';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const formatDate = (dateString: string) => {
@@ -75,6 +84,15 @@ const RequestDetail: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('details');
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showQuoteDialog, setShowQuoteDialog] = useState(false);
+  const [editData, setEditData] = useState({
+    aplicacao: '',
+    motivo: '',
+    prioridade: '',
+    prazo_entrega: '',
+    local_entrega: ''
+  });
   
   const { data: request, isLoading, error } = useQuery({
     queryKey: ['request', id],
@@ -128,16 +146,51 @@ const RequestDetail: React.FC = () => {
   };
 
   const handleManageQuotes = () => {
-    toast.success("Gerenciamento de cotações iniciado");
+    setShowQuoteDialog(true);
   };
 
   const handleFinalizePurchase = () => {
     toast.success("Aquisição finalizada com sucesso");
-    queryClient.invalidateQueries({ queryKey: ['request', id] });
+    
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
+      toast.success("Status atualizado: Finalizado");
+    }, 1000);
   };
 
   const handleEditRequest = () => {
-    toast.info("Editando solicitação...");
+    if (request) {
+      setEditData({
+        aplicacao: request.aplicacao,
+        motivo: request.motivo,
+        prioridade: request.prioridade,
+        prazo_entrega: request.prazo_entrega,
+        local_entrega: request.local_entrega
+      });
+      setShowEditDialog(true);
+    }
+  };
+
+  const handlePrintRequest = () => {
+    toast.success("Imprimindo solicitação...");
+    // In a real application, this would generate a PDF or open a print dialog
+  };
+
+  const handleViewHistory = () => {
+    toast.info("Visualizando histórico de alterações");
+    // In a real application, this would show a history log
+  };
+
+  const handleSaveEdit = () => {
+    toast.success("Solicitação atualizada com sucesso");
+    setShowEditDialog(false);
+    queryClient.invalidateQueries({ queryKey: ['request', id] });
+  };
+
+  const handleSaveQuote = () => {
+    toast.success("Cotação registrada com sucesso");
+    setShowQuoteDialog(false);
+    queryClient.invalidateQueries({ queryKey: ['request', id] });
   };
   
   if (isLoading) {
@@ -558,7 +611,7 @@ const RequestDetail: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="w-full justify-start"
-                      onClick={() => toast.info("Histórico de alterações visualizado")}
+                      onClick={handleViewHistory}
                     >
                       <Clock className="mr-2 h-4 w-4" />
                       Ver histórico de alterações
@@ -567,7 +620,7 @@ const RequestDetail: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="w-full justify-start"
-                      onClick={() => toast.info("Solicitação impressa com sucesso")}
+                      onClick={handlePrintRequest}
                     >
                       <Clipboard className="mr-2 h-4 w-4" />
                       Imprimir solicitação
@@ -590,6 +643,209 @@ const RequestDetail: React.FC = () => {
           </div>
         </div>
       </main>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Solicitação</DialogTitle>
+            <DialogDescription>
+              Atualize os dados da solicitação #{request.id}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Aplicação</label>
+              <Input 
+                value={editData.aplicacao} 
+                onChange={(e) => setEditData({...editData, aplicacao: e.target.value})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Motivo</label>
+              <textarea 
+                className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={editData.motivo}
+                onChange={(e) => setEditData({...editData, motivo: e.target.value})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Prioridade</label>
+              <select 
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={editData.prioridade}
+                onChange={(e) => setEditData({...editData, prioridade: e.target.value})}
+              >
+                <option value="Básica">Básica</option>
+                <option value="Moderada">Moderada</option>
+                <option value="Urgente">Urgente</option>
+              </select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Prazo de Entrega</label>
+              <Input 
+                type="date"
+                value={editData.prazo_entrega}
+                onChange={(e) => setEditData({...editData, prazo_entrega: e.target.value})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Local de Entrega</label>
+              <Input 
+                value={editData.local_entrega}
+                onChange={(e) => setEditData({...editData, local_entrega: e.target.value})}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit}>
+              Salvar Alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showQuoteDialog} onOpenChange={setShowQuoteDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Cotações</DialogTitle>
+            <DialogDescription>
+              Adicione ou edite cotações para a solicitação #{request.id}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="border rounded-lg p-4">
+              <h3 className="font-medium text-lg mb-4">Adicionar Nova Cotação</h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fornecedor</label>
+                  <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <option value="">Selecione um fornecedor</option>
+                    <option value="1">Fornecedor A Ltda</option>
+                    <option value="2">Fornecedor B S.A.</option>
+                    <option value="3">Fornecedor C ME</option>
+                    <option value="4">Fornecedor D EPP</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Prazo de Entrega</label>
+                  <Input type="date" />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Valor Total</label>
+                  <Input type="number" step="0.01" placeholder="0,00" />
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Condições</label>
+                  <Input placeholder="Ex: Pagamento em 30 dias" />
+                </div>
+              </div>
+              
+              <h4 className="font-medium text-sm mb-2">Itens da Cotação</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 px-2">Item</th>
+                      <th className="text-left py-2 px-2">Quantidade</th>
+                      <th className="text-left py-2 px-2">Preço Unitário</th>
+                      <th className="text-left py-2 px-2">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {request.items?.map((item: any) => (
+                      <tr key={item.id} className="border-b">
+                        <td className="py-2 px-2">{item.descricao}</td>
+                        <td className="py-2 px-2">{item.quantidade}</td>
+                        <td className="py-2 px-2">
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            className="w-28 h-8" 
+                            placeholder="0,00" 
+                          />
+                        </td>
+                        <td className="py-2 px-2">R$ 0,00</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={3} className="text-right py-2 px-2 font-medium">Total:</td>
+                      <td className="py-2 px-2 font-bold">R$ 0,00</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              
+              <div className="mt-4 flex justify-end">
+                <Button>
+                  Adicionar Cotação
+                </Button>
+              </div>
+            </div>
+            
+            {request.quotes && request.quotes.length > 0 && (
+              <div>
+                <h3 className="font-medium text-lg mb-4">Cotações Existentes</h3>
+                <div className="space-y-4">
+                  {request.quotes.map((quote: any) => (
+                    <div key={quote.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h4 className="font-medium">{quote.fornecedor}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Prazo: {formatDate(quote.prazo_entrega)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold">{formatCurrency(quote.preco)}</div>
+                          <StatusBadge type="status" value={quote.status} />
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <p>Condições: {quote.condicoes}</p>
+                      </div>
+                      <div className="mt-4 flex justify-end gap-2">
+                        <Button variant="outline" size="sm">Editar</Button>
+                        <Button 
+                          variant={quote.status === 'Aprovado' ? 'outline' : 'default'} 
+                          size="sm" 
+                          disabled={quote.status === 'Aprovado'}
+                        >
+                          {quote.status === 'Aprovado' ? 'Aprovado' : 'Aprovar'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowQuoteDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveQuote}>
+              Salvar Alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

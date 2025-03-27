@@ -49,6 +49,16 @@ export interface Quote {
   aprovado_por?: string;
 }
 
+export interface Supplier {
+  id: number;
+  nome: string;
+  categoria: string;
+  contato: string;
+  telefone: string;
+  email: string;
+  endereco: string;
+}
+
 // Mock data for development until backend is implemented
 const mockRequests: Request[] = [
   {
@@ -124,6 +134,13 @@ const mockQuotes: Quote[] = [
     nivel_aprovacao: 'Gerência',
     status: 'Em Cotação'
   }
+];
+
+const mockSuppliers: Supplier[] = [
+  { id: 1, nome: 'Fornecedor A Ltda', categoria: 'Equipamentos', contato: 'João Silva', telefone: '(11) 98765-4321', email: 'contato@fornecedora.com', endereco: 'Rua A, 123 - São Paulo/SP' },
+  { id: 2, nome: 'Fornecedor B S.A.', categoria: 'Materiais', contato: 'Maria Oliveira', telefone: '(11) 91234-5678', email: 'vendas@fornecedorb.com', endereco: 'Av. B, 456 - Rio de Janeiro/RJ' },
+  { id: 3, nome: 'Fornecedor C ME', categoria: 'Serviços', contato: 'Carlos Santos', telefone: '(11) 99876-5432', email: 'carlos@fornecedorc.com', endereco: 'Praça C, 789 - Belo Horizonte/MG' },
+  { id: 4, nome: 'Fornecedor D EPP', categoria: 'Manutenção', contato: 'Ana Souza', telefone: '(11) 92345-6789', email: 'contato@fornecedord.com', endereco: 'Alameda D, 1011 - Brasília/DF' },
 ];
 
 // Test connection simulation
@@ -266,6 +283,45 @@ export const updateQuoteStatus = async (id: number, status: string, approvedBy?:
   mockQuotes[quoteIndex].status = status;
   if (approvedBy) mockQuotes[quoteIndex].aprovado_por = approvedBy;
   if (approvalLevel) mockQuotes[quoteIndex].nivel_aprovacao = approvalLevel;
+  
+  return true;
+};
+
+// Create supplier
+export const createSupplier = async (supplierData: Omit<Supplier, 'id'>): Promise<number> => {
+  console.log('Creating supplier:', supplierData);
+  
+  const newId = mockSuppliers.length + 1;
+  
+  const newSupplier: Supplier = {
+    id: newId,
+    ...supplierData
+  };
+  
+  mockSuppliers.push(newSupplier);
+  
+  return newId;
+};
+
+// Get all suppliers
+export const getAllSuppliers = async (): Promise<Supplier[]> => {
+  console.log('Fetching all suppliers');
+  return [...mockSuppliers];
+};
+
+// Update request details
+export const updateRequestDetails = async (id: number, updateData: Partial<Request>): Promise<boolean> => {
+  console.log('Updating request details:', id, updateData);
+  
+  const requestIndex = mockRequests.findIndex(req => req.id === id);
+  if (requestIndex === -1) {
+    return false;
+  }
+  
+  mockRequests[requestIndex] = {
+    ...mockRequests[requestIndex],
+    ...updateData
+  };
   
   return true;
 };
