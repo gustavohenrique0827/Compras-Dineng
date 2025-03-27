@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -16,7 +17,8 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  FileEdit
+  FileEdit,
+  Loader2
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import StatusBadge from '@/components/StatusBadge';
@@ -38,27 +40,117 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import {
-  getRequestById,
-  formatDate,
-  formatCurrency,
-  getDaysRemaining,
-  PurchaseQuote
-} from '@/utils/mockData';
+import { fetchRequestById, updateStatus } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+// Helper functions to format data
+const formatDate = (dateString: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('pt-BR');
+};
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value);
+};
+
+const getDaysRemaining = (dateString: string) => {
+  if (!dateString) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const targetDate = new Date(dateString);
+  targetDate.setHours(0, 0, 0, 0);
+  
+  const diffTime = targetDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
+};
 
 const RequestDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('details');
-  const [processing, setProcessing] = useState(false);
   
-  // Get request data
-  const requestId = Number(id);
-  const request = getRequestById(requestId);
+  // Fetch request data
+  const { data: request, isLoading, error } = useQuery({
+    queryKey: ['request', id],
+    queryFn: () => fetchRequestById(Number(id)),
+    enabled: !!id
+  });
   
-  if (!request) {
+  // Mutation for approving a request
+  const approveMutation = useMutation({
+    mutationFn: () => updateStatus(Number(id), 'Aprovado', {
+      etapa: 'Solicitação',
+      status: 'Aprovado',
+      aprovado_por: 'Usuário Atual', // In a real app, get from auth context
+      nivel_aprovacao: 'Supervisão'
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
+      toast.success("Solicitação aprovada com sucesso!");
+      navigate("/requests");
+    },
+    onError: (error) => {
+      console.error('Error approving request:', error);
+      toast.error("Erro ao aprovar solicitação. Tente novamente.");
+    }
+  });
+  
+  // Mutation for rejecting a request
+  const rejectMutation = useMutation({
+    mutationFn: () => updateStatus(Number(id), 'Rejeitado', {
+      etapa: 'Solicitação',
+      status: 'Rejeitado',
+      aprovado_por: 'Usuário Atual', // In a real app, get from auth context
+      nivel_aprovacao: 'Supervisão',
+      motivo_rejeicao: 'Rejeitado pelo aprovador.'
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
+      toast.success("Solicitação rejeitada com sucesso!");
+      navigate("/requests");
+    },
+    onError: (error) => {
+      console.error('Error rejecting request:', error);
+      toast.error("Erro ao rejeitar solicitação. Tente novamente.");
+    }
+  });
+  
+  const handleApproveRequest = () => {
+    approveMutation.mutate();
+  };
+  
+  const handleRejectRequest = () => {
+    rejectMutation.mutate();
+  };
+  
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
+          <div className="section-padding">
+            <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-12">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+              <p className="text-muted-foreground">Carregando detalhes da solicitação...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error || !request) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -79,25 +171,7 @@ const RequestDetail: React.FC = () => {
     );
   }
   
-  const daysRemaining = getDaysRemaining(request.deadlineDate);
-  
-  const handleApproveRequest = () => {
-    setProcessing(true);
-    setTimeout(() => {
-      toast.success("Solicitação aprovada com sucesso!");
-      setProcessing(false);
-      navigate("/");
-    }, 1000);
-  };
-  
-  const handleRejectRequest = () => {
-    setProcessing(true);
-    setTimeout(() => {
-      toast.success("Solicitação rejeitada com sucesso!");
-      setProcessing(false);
-      navigate("/");
-    }, 1000);
-  };
+  const daysRemaining = getDaysRemaining(request.data_limite);
   
   return (
     <div className="min-h-screen bg-background">
@@ -111,7 +185,7 @@ const RequestDetail: React.FC = () => {
                   variant="ghost" 
                   size="icon"
                   className="mr-2"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate('/requests')}
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
@@ -121,7 +195,7 @@ const RequestDetail: React.FC = () => {
                     <StatusBadge type="status" value={request.status} />
                   </div>
                   <p className="text-muted-foreground">
-                    Criada em {formatDate(request.requestDate)}
+                    Criada em {formatDate(request.data_solicitacao)}
                   </p>
                 </div>
               </div>
@@ -132,17 +206,25 @@ const RequestDetail: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                      disabled={processing}
+                      disabled={rejectMutation.isPending || approveMutation.isPending}
                       onClick={handleRejectRequest}
                     >
-                      <XCircle className="mr-2 h-4 w-4" />
+                      {rejectMutation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <XCircle className="mr-2 h-4 w-4" />
+                      )}
                       Rejeitar
                     </Button>
                     <Button
-                      disabled={processing}
+                      disabled={approveMutation.isPending || rejectMutation.isPending}
                       onClick={handleApproveRequest}
                     >
-                      <CheckCircle className="mr-2 h-4 w-4" />
+                      {approveMutation.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                      )}
                       Aprovar
                     </Button>
                   </>
@@ -176,12 +258,12 @@ const RequestDetail: React.FC = () => {
                 <Card className="glass-card animate-fadeIn">
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <CardHeader>
-                      <CardTitle>{request.application}</CardTitle>
-                      <CardDescription>{request.reason}</CardDescription>
+                      <CardTitle>{request.aplicacao}</CardTitle>
+                      <CardDescription>{request.motivo}</CardDescription>
                       <TabsList className="mt-2">
                         <TabsTrigger value="details">Detalhes</TabsTrigger>
                         <TabsTrigger value="items">Itens</TabsTrigger>
-                        {request.quotes && (
+                        {request.quotes && request.quotes.length > 0 && (
                           <TabsTrigger value="quotes">Cotações</TabsTrigger>
                         )}
                       </TabsList>
@@ -195,7 +277,7 @@ const RequestDetail: React.FC = () => {
                               <h4 className="text-sm font-medium text-muted-foreground mb-1">
                                 Solicitante
                               </h4>
-                              <p className="font-medium">{request.requesterName}</p>
+                              <p className="font-medium">{request.nome_solicitante}</p>
                             </div>
                             
                             <div>
@@ -204,7 +286,7 @@ const RequestDetail: React.FC = () => {
                               </h4>
                               <div className="flex items-center">
                                 <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <p className="font-medium">{request.costCenter}</p>
+                                <p className="font-medium">{request.centro_custo}</p>
                               </div>
                             </div>
                             
@@ -214,7 +296,7 @@ const RequestDetail: React.FC = () => {
                               </h4>
                               <div className="flex items-center">
                                 <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <p className="font-medium">{request.deliveryLocation}</p>
+                                <p className="font-medium">{request.local_entrega}</p>
                               </div>
                             </div>
                           </div>
@@ -226,7 +308,7 @@ const RequestDetail: React.FC = () => {
                               </h4>
                               <div className="flex items-center">
                                 <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <StatusBadge type="category" value={request.category} />
+                                <StatusBadge type="category" value={request.categoria} />
                               </div>
                             </div>
                             
@@ -236,7 +318,7 @@ const RequestDetail: React.FC = () => {
                               </h4>
                               <div className="flex items-center">
                                 <AlertTriangle className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <StatusBadge type="priority" value={request.priority} />
+                                <StatusBadge type="priority" value={request.prioridade} />
                               </div>
                             </div>
                             
@@ -246,7 +328,7 @@ const RequestDetail: React.FC = () => {
                               </h4>
                               <div className="flex items-center">
                                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                                <p className="font-medium">{formatDate(request.deliveryDeadline)}</p>
+                                <p className="font-medium">{formatDate(request.prazo_entrega)}</p>
                                 <span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${
                                   daysRemaining < 0 ? 'bg-red-100 text-red-700' : 
                                   daysRemaining <= 2 ? 'bg-amber-100 text-amber-700' : 
@@ -267,37 +349,37 @@ const RequestDetail: React.FC = () => {
                           <h4 className="text-sm font-medium text-muted-foreground mb-1">
                             Motivo da Compra
                           </h4>
-                          <p className="text-sm whitespace-pre-line">{request.reason}</p>
+                          <p className="text-sm whitespace-pre-line">{request.motivo}</p>
                         </div>
                       </CardContent>
                     </TabsContent>
                     
                     <TabsContent value="items" className="m-0">
                       <CardContent>
-                        <ItemTable items={request.items} />
+                        <ItemTable items={request.items || []} />
                       </CardContent>
                     </TabsContent>
                     
-                    {request.quotes && (
+                    {request.quotes && request.quotes.length > 0 && (
                       <TabsContent value="quotes" className="m-0">
                         <CardContent>
                           <div className="space-y-6">
-                            {request.quotes.map((quote: PurchaseQuote) => (
+                            {request.quotes.map((quote: any) => (
                               <div 
                                 key={quote.id}
                                 className="border rounded-lg p-4 transition-all hover:border-primary/30"
                               >
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                   <div>
-                                    <h4 className="font-medium">{quote.supplier}</h4>
+                                    <h4 className="font-medium">{quote.fornecedor}</h4>
                                     <p className="text-muted-foreground text-sm">
-                                      Entrega: {formatDate(quote.deliveryDate)}
+                                      Entrega: {formatDate(quote.prazo_entrega)}
                                     </p>
                                   </div>
                                   
                                   <div className="space-y-1">
                                     <div className="text-lg font-bold">
-                                      {formatCurrency(quote.price)}
+                                      {formatCurrency(quote.preco)}
                                     </div>
                                     <StatusBadge 
                                       type="status" 
@@ -311,14 +393,14 @@ const RequestDetail: React.FC = () => {
                                   <h5 className="text-sm font-medium text-muted-foreground mb-1">
                                     Condições
                                   </h5>
-                                  <p className="text-sm">{quote.conditions}</p>
+                                  <p className="text-sm">{quote.condicoes}</p>
                                 </div>
                                 
-                                {quote.approvedBy && (
+                                {quote.aprovado_por && (
                                   <div className="mt-3 pt-3 border-t text-sm">
                                     <span className="text-muted-foreground">Aprovado por: </span>
-                                    <span className="font-medium">{quote.approvedBy}</span>
-                                    <span className="text-muted-foreground ml-1">({quote.approvalLevel})</span>
+                                    <span className="font-medium">{quote.aprovado_por}</span>
+                                    <span className="text-muted-foreground ml-1">({quote.nivel_aprovacao})</span>
                                   </div>
                                 )}
                               </div>
@@ -356,7 +438,7 @@ const RequestDetail: React.FC = () => {
                       
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Prioridade</span>
-                        <StatusBadge type="priority" value={request.priority} />
+                        <StatusBadge type="priority" value={request.prioridade} />
                       </div>
                       
                       <div className="flex items-center justify-between">
@@ -470,7 +552,7 @@ const RequestDetail: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="w-full justify-start"
-                      onClick={() => navigate(`/requests/${request.id}/timeline`)}
+                      onClick={() => toast.info("Funcionalidade em desenvolvimento")}
                     >
                       <Clock className="mr-2 h-4 w-4" />
                       Ver histórico de alterações
@@ -479,7 +561,7 @@ const RequestDetail: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="w-full justify-start"
-                      onClick={() => navigate(`/requests/${request.id}/print`)}
+                      onClick={() => toast.info("Funcionalidade em desenvolvimento")}
                     >
                       <Clipboard className="mr-2 h-4 w-4" />
                       Imprimir solicitação
@@ -489,6 +571,7 @@ const RequestDetail: React.FC = () => {
                       <Button 
                         variant="outline" 
                         className="w-full justify-start"
+                        onClick={() => toast.info("Funcionalidade em desenvolvimento")}
                       >
                         <FileEdit className="mr-2 h-4 w-4" />
                         Editar solicitação

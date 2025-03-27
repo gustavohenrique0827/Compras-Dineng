@@ -4,18 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Loader2 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -26,7 +19,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -34,83 +26,103 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { createNewRequest } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
 
-// Define schema for form validation
-const formSchema = z.object({
+// Validation schema
+const requestFormSchema = z.object({
   requesterName: z.string().min(3, {
-    message: "Nome do solicitante deve ter pelo menos 3 caracteres",
+    message: "Nome do solicitante deve ter pelo menos 3 caracteres.",
   }),
-  application: z.string().min(5, {
-    message: "Aplicação deve ter pelo menos 5 caracteres",
+  application: z.string().min(3, {
+    message: "Aplicação deve ter pelo menos 3 caracteres.",
   }),
-  costCenter: z.string().min(2, {
-    message: "Centro de custo é obrigatório",
+  costCenter: z.string().min(1, {
+    message: "Centro de custo é obrigatório.",
   }),
   deliveryLocation: z.string().min(3, {
-    message: "Local de entrega deve ter pelo menos 3 caracteres",
+    message: "Local de entrega deve ter pelo menos 3 caracteres.",
   }),
   deliveryDeadline: z.string().min(1, {
-    message: "Prazo de entrega é obrigatório",
+    message: "Prazo de entrega é obrigatório.",
   }),
-  category: z.enum(["Materiais", "Serviços", "Outros"], {
-    message: "Categoria é obrigatória",
+  category: z.string().min(1, {
+    message: "Categoria é obrigatória.",
   }),
-  priority: z.enum(["Urgente", "Moderada", "Básica"], {
-    message: "Prioridade é obrigatória",
+  priority: z.string().min(1, {
+    message: "Prioridade é obrigatória.",
   }),
   reason: z.string().min(10, {
-    message: "Motivo deve ter pelo menos 10 caracteres",
+    message: "Motivo deve ter pelo menos 10 caracteres.",
   }),
   items: z.array(
     z.object({
-      description: z.string().min(3, { message: "Descrição é obrigatória" }),
-      quantity: z.coerce.number().positive({ message: "Quantidade deve ser positiva" }),
+      description: z.string().min(3, {
+        message: "Descrição deve ter pelo menos 3 caracteres.",
+      }),
+      quantity: z.number().min(1, {
+        message: "Quantidade deve ser pelo menos 1.",
+      }),
     })
-  ).min(1, { message: "Pelo menos um item é obrigatório" }),
+  ).min(1, {
+    message: "Adicione pelo menos um item à solicitação.",
+  }),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof requestFormSchema>;
 
-const RequestForm: React.FC = () => {
+const RequestForm = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Initialize form with default values
+  
+  // Define form
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(requestFormSchema),
     defaultValues: {
       requesterName: "",
       application: "",
       costCenter: "",
       deliveryLocation: "",
       deliveryDeadline: new Date().toISOString().split('T')[0],
-      category: "Materiais",
-      priority: "Moderada",
+      category: "",
+      priority: "",
       reason: "",
       items: [{ description: "", quantity: 1 }],
     },
   });
 
-  // Use useFieldArray instead of accessing control._formValues directly
+  // Use useFieldArray to manage items array
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "items"
   });
 
+  // Mutation for form submission
+  const mutation = useMutation({
+    mutationFn: (data: FormValues) => createNewRequest(data, data.items),
+    onSuccess: () => {
+      toast.success("Solicitação criada com sucesso!");
+      navigate("/requests");
+    },
+    onError: (error) => {
+      console.error("Erro ao criar solicitação:", error);
+      toast.error("Erro ao criar a solicitação. Tente novamente.");
+    }
+  });
+
   // Submit handler
   const onSubmit = async (data: FormValues) => {
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Form submitted:", data);
-      toast.success("Solicitação criada com sucesso!");
-      setIsSubmitting(false);
-      navigate("/");
-    }, 1500);
+    mutation.mutate(data);
   };
 
   return (
@@ -119,33 +131,52 @@ const RequestForm: React.FC = () => {
       <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
         <div className="section-padding">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6 animate-fadeIn">Nova Solicitação de Compra</h2>
-            
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold">Nova Solicitação</h2>
+              <p className="text-muted-foreground">
+                Preencha os dados abaixo para criar uma nova solicitação de compra
+              </p>
+            </div>
+
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <Card className="glass-card animate-slideInUp">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <Card>
                   <CardHeader>
-                    <CardTitle>Informações da Solicitação</CardTitle>
+                    <CardTitle>Informações Gerais</CardTitle>
                     <CardDescription>
-                      Preencha os dados básicos da sua solicitação de compra
+                      Detalhes básicos sobre a solicitação
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="requesterName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome do Solicitante</FormLabel>
-                            <FormControl>
-                              <Input placeholder="João Silva" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="requesterName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome do Solicitante</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Digite seu nome completo" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="application"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Aplicação</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Para que será utilizado?" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="costCenter"
@@ -153,29 +184,13 @@ const RequestForm: React.FC = () => {
                           <FormItem>
                             <FormLabel>Centro de Custo</FormLabel>
                             <FormControl>
-                              <Input placeholder="CC-001" {...field} />
+                              <Input placeholder="Ex: CC-001" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </div>
-                    
-                    <FormField
-                      control={form.control}
-                      name="application"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Aplicação (Para que será usado)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Manutenção de equipamentos" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+
                       <FormField
                         control={form.control}
                         name="deliveryLocation"
@@ -183,13 +198,15 @@ const RequestForm: React.FC = () => {
                           <FormItem>
                             <FormLabel>Local de Entrega</FormLabel>
                             <FormControl>
-                              <Input placeholder="Almoxarifado Central" {...field} />
+                              <Input placeholder="Onde será entregue?" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField
                         control={form.control}
                         name="deliveryDeadline"
@@ -203,22 +220,17 @@ const RequestForm: React.FC = () => {
                           </FormItem>
                         )}
                       />
-                    </div>
-                    
-                    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+
                       <FormField
                         control={form.control}
                         name="category"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Categoria</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                            >
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Selecione a categoria" />
+                                  <SelectValue placeholder="Selecione" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -231,20 +243,17 @@ const RequestForm: React.FC = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="priority"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Prioridade</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                            >
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Selecione a prioridade" />
+                                  <SelectValue placeholder="Selecione" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -254,14 +263,14 @@ const RequestForm: React.FC = () => {
                               </SelectContent>
                             </Select>
                             <FormDescription>
-                              Define o prazo máximo para atendimento da solicitação
+                              Define o prazo para aprovação
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-                    
+
                     <FormField
                       control={form.control}
                       name="reason"
@@ -269,10 +278,10 @@ const RequestForm: React.FC = () => {
                         <FormItem>
                           <FormLabel>Motivo da Compra</FormLabel>
                           <FormControl>
-                            <Textarea 
-                              placeholder="Descreva o motivo da necessidade desta compra"
-                              className="resize-none min-h-[100px]"
-                              {...field} 
+                            <Textarea
+                              placeholder="Descreva detalhadamente o motivo desta solicitação..."
+                              className="min-h-[120px]"
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -281,26 +290,13 @@ const RequestForm: React.FC = () => {
                     />
                   </CardContent>
                 </Card>
-                
-                <Card className="glass-card animate-slideInUp delay-100">
+
+                <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Itens da Solicitação</CardTitle>
-                        <CardDescription>
-                          Adicione todos os itens que deseja solicitar
-                        </CardDescription>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => append({ description: "", quantity: 1 })}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Adicionar
-                      </Button>
-                    </div>
+                    <CardTitle>Itens Solicitados</CardTitle>
+                    <CardDescription>
+                      Adicione todos os itens necessários para esta solicitação
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -312,11 +308,9 @@ const RequestForm: React.FC = () => {
                               name={`items.${index}.description`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className={index !== 0 ? "sr-only" : ""}>
-                                    Descrição
-                                  </FormLabel>
+                                  <FormLabel>Descrição do Item {index + 1}</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Descrição do item" {...field} />
+                                    <Input placeholder="Nome/descrição do item" {...field} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -330,15 +324,13 @@ const RequestForm: React.FC = () => {
                               name={`items.${index}.quantity`}
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className={index !== 0 ? "sr-only" : ""}>
-                                    Qtd
-                                  </FormLabel>
+                                  <FormLabel>Qtd.</FormLabel>
                                   <FormControl>
                                     <Input 
                                       type="number" 
-                                      min="1"
-                                      step="1"
-                                      {...field} 
+                                      min={1}
+                                      {...field}
+                                      onChange={(e) => field.onChange(Number(e.target.value))}
                                     />
                                   </FormControl>
                                   <FormMessage />
@@ -347,41 +339,57 @@ const RequestForm: React.FC = () => {
                             />
                           </div>
                           
-                          <div className="pt-8">
-                            {index > 0 && (
+                          {fields.length > 1 && (
+                            <div className="pt-8">
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => remove(index)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                       
-                      {form.formState.errors.items?.message && (
-                        <p className="text-sm font-medium text-destructive">
-                          {form.formState.errors.items.message}
-                        </p>
-                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => append({ description: "", quantity: 1 })}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Adicionar Item
+                      </Button>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-between border-t pt-6">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => navigate('/')}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting ? "Enviando..." : "Enviar Solicitação"}
-                    </Button>
-                  </CardFooter>
                 </Card>
+                
+                <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate("/requests")}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={mutation.isPending}
+                  >
+                    {mutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>Enviar Solicitação</>
+                    )}
+                  </Button>
+                </div>
               </form>
             </Form>
           </div>

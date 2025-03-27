@@ -1,11 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { 
   FileText, 
   Search, 
   Filter, 
-  ArrowUpDown
+  ArrowUpDown,
+  Loader2
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import StatusBadge from '@/components/StatusBadge';
@@ -18,8 +20,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockRequests } from '@/utils/mockData';
+import { fetchRequests } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from 'sonner';
+
+// Type definition for a request
+interface Request {
+  id: number;
+  nome_solicitante: string;
+  aplicacao: string;
+  centro_custo: string;
+  data_solicitacao: string;
+  local_entrega: string;
+  prazo_entrega: string;
+  categoria: string;
+  motivo: string;
+  prioridade: string;
+  data_limite: string;
+  status: string;
+}
 
 const Requests = () => {
   const isMobile = useIsMobile();
@@ -28,19 +47,47 @@ const Requests = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   
+  // Fetch requests data
+  const { data: requests = [], isLoading, error } = useQuery({
+    queryKey: ['requests'],
+    queryFn: fetchRequests,
+    onError: (err) => {
+      console.error('Error fetching requests:', err);
+      toast.error('Erro ao carregar solicitações. Tente novamente mais tarde.');
+    }
+  });
+  
   // Apply filters to the list of requests
-  const filteredRequests = mockRequests.filter(request => {
+  const filteredRequests = (requests as Request[]).filter(request => {
     const matchesSearch = 
-      request.application.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.requesterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.costCenter.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.aplicacao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.nome_solicitante.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.centro_custo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       String(request.id).includes(searchTerm);
     
     const matchesStatus = statusFilter === 'all' ? true : request.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' ? true : request.priority === priorityFilter;
+    const matchesPriority = priorityFilter === 'all' ? true : request.prioridade === priorityFilter;
     
     return matchesSearch && matchesStatus && matchesPriority;
   });
+  
+  useEffect(() => {
+    // Test the database connection
+    const testDb = async () => {
+      try {
+        const { testConnection } = await import('@/utils/database');
+        const connected = await testConnection();
+        if (connected) {
+          toast.success('Conectado com sucesso ao banco de dados');
+        }
+      } catch (error) {
+        console.error('Database connection error:', error);
+        toast.error('Erro ao conectar ao banco de dados');
+      }
+    };
+    
+    testDb();
+  }, []);
   
   return (
     <div className="min-h-screen bg-background">
@@ -113,46 +160,60 @@ const Requests = () => {
                 </div>
               </div>
               
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">#</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Aplicação</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Solicitante</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">CC</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Prioridade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRequests.map((request, index) => (
-                      <tr 
-                        key={request.id}
-                        className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/requests/${request.id}`)}
-                      >
-                        <td className="px-4 py-3 text-sm">{request.id}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{request.application}</td>
-                        <td className="px-4 py-3 text-sm">{request.requesterName}</td>
-                        <td className="px-4 py-3 text-sm">{request.costCenter}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <StatusBadge type="status" value={request.status} />
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <StatusBadge type="priority" value={request.priority} />
-                        </td>
+              {isLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">Carregando solicitações...</span>
+                </div>
+              ) : error ? (
+                <div className="py-8 text-center">
+                  <p className="text-destructive">Erro ao carregar as solicitações</p>
+                  <Button variant="outline" onClick={() => window.location.reload()} className="mt-2">
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-muted/50">
+                        <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">#</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Aplicação</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Solicitante</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">CC</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Status</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Prioridade</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                
-                {filteredRequests.length === 0 && (
-                  <div className="py-8 text-center">
-                    <p className="text-muted-foreground">Nenhuma solicitação encontrada</p>
-                  </div>
-                )}
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredRequests.map((request) => (
+                        <tr 
+                          key={request.id}
+                          className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+                          onClick={() => navigate(`/requests/${request.id}`)}
+                        >
+                          <td className="px-4 py-3 text-sm">{request.id}</td>
+                          <td className="px-4 py-3 text-sm font-medium">{request.aplicacao}</td>
+                          <td className="px-4 py-3 text-sm">{request.nome_solicitante}</td>
+                          <td className="px-4 py-3 text-sm">{request.centro_custo}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <StatusBadge type="status" value={request.status} />
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <StatusBadge type="priority" value={request.prioridade} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  {filteredRequests.length === 0 && (
+                    <div className="py-8 text-center">
+                      <p className="text-muted-foreground">Nenhuma solicitação encontrada</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
