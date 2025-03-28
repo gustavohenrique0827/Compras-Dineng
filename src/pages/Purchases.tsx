@@ -43,7 +43,7 @@ import { useNavigate } from 'react-router-dom';
 const Purchases = () => {
   const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all'); // Changed from empty string to 'all'
   const [openQuoteDialog, setOpenQuoteDialog] = useState(false);
   const navigate = useNavigate();
   
@@ -72,7 +72,7 @@ const Purchases = () => {
   const filteredPurchases = mockPurchases.filter(purchase => {
     const matchesSearch = purchase.ordem.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          purchase.fornecedor.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus ? purchase.status === filterStatus : true;
+    const matchesStatus = filterStatus === 'all' ? true : purchase.status === filterStatus;
     
     return matchesSearch && matchesStatus;
   });
@@ -174,7 +174,7 @@ const Purchases = () => {
                       <SelectValue placeholder="Filtrar por status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos os status</SelectItem>
+                      <SelectItem value="all">Todos os status</SelectItem>
                       <SelectItem value="Em andamento">Em andamento</SelectItem>
                       <SelectItem value="Finalizada">Finalizada</SelectItem>
                     </SelectContent>

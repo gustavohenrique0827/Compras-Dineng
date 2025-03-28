@@ -45,8 +45,8 @@ const Requests = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all'); // Changed from empty string to 'all'
+  const [priorityFilter, setPriorityFilter] = useState('all'); // Changed from empty string to 'all'
   
   // Fetch requests data with proper error handling
   const { data: requests = [], isLoading, error } = useQuery({
