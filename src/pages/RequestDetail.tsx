@@ -24,6 +24,7 @@ import StatusBadge from '@/components/StatusBadge';
 import ItemTable from '@/components/ItemTable';
 import ApprovalFlow from '@/components/ApprovalFlow';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
