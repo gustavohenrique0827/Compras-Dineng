@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,17 +7,12 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   ArrowLeft,
-  FileText,
-  Calendar,
+  CheckSquare,
   DollarSign,
-  Check,
-  Printer,
-  Loader2
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
 import { getQuoteById, updateQuote } from '@/api/quotes';
 
 interface QuoteItem {
@@ -46,7 +42,7 @@ const QuoteDetail = () => {
   const { id } = useParams();
   const quoteId = Number(id);
   
-  const { data: quoteData, isLoading, error } = useQuery({
+  const { data: quoteData, isLoading } = useQuery({
     queryKey: ['quote', quoteId],
     queryFn: () => getQuoteById(quoteId),
     enabled: !!quoteId && !isNaN(quoteId)
@@ -54,7 +50,7 @@ const QuoteDetail = () => {
   
   const [quote, setQuote] = useState<Quote | null>(null);
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (quoteData) {
       setQuote(quoteData as Quote);
     }
@@ -62,11 +58,6 @@ const QuoteDetail = () => {
   
   const handleBack = () => {
     navigate('/cotacoes');
-  };
-  
-  const handlePrint = () => {
-    toast.info('Imprimindo cotação...');
-    // Implementação futura da função de impressão
   };
   
   const handleApprove = async () => {
@@ -95,20 +86,40 @@ const QuoteDetail = () => {
     }
   };
   
-  const toggleItemSelection = (itemId: number) => {
+  const toggleItemSelection = (supplierId: number, itemId: number) => {
     if (!quote) return;
     
     setQuote({
       ...quote,
       items: quote.items.map(item => {
-        if (item.itemId === itemId) {
+        if (item.itemId === itemId && item.supplierId === supplierId) {
           return { ...item, selected: !item.selected };
         }
         return item;
       }),
       totalValue: recalculateTotal(quote.items.map(item => {
-        if (item.itemId === itemId) {
+        if (item.itemId === itemId && item.supplierId === supplierId) {
           return { ...item, selected: !item.selected };
+        }
+        return item;
+      }))
+    });
+  };
+  
+  const toggleAllItems = (supplierId: number, select: boolean) => {
+    if (!quote) return;
+    
+    setQuote({
+      ...quote,
+      items: quote.items.map(item => {
+        if (item.supplierId === supplierId) {
+          return { ...item, selected: select };
+        }
+        return item;
+      }),
+      totalValue: recalculateTotal(quote.items.map(item => {
+        if (item.supplierId === supplierId) {
+          return { ...item, selected: select };
         }
         return item;
       }))
@@ -121,65 +132,42 @@ const QuoteDetail = () => {
       .reduce((sum, item) => sum + item.totalValue, 0);
   };
   
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
-  };
-  
-  const getSupplierSummary = () => {
-    if (!quote) return [];
+  // Group items by supplier
+  const getSupplierItems = () => {
+    if (!quote) return {};
     
-    const supplierSummary: { [key: number]: { name: string, total: number } } = {};
+    const supplierGroups: Record<number, {name: string, items: QuoteItem[]}> = {};
     
     quote.items.forEach(item => {
-      if (item.selected) {
-        if (!supplierSummary[item.supplierId]) {
-          supplierSummary[item.supplierId] = {
-            name: item.supplierName,
-            total: 0
-          };
-        }
-        supplierSummary[item.supplierId].total += item.totalValue;
+      if (!supplierGroups[item.supplierId]) {
+        supplierGroups[item.supplierId] = {
+          name: item.supplierName,
+          items: []
+        };
       }
+      supplierGroups[item.supplierId].items.push(item);
     });
     
-    return Object.values(supplierSummary);
+    return supplierGroups;
   };
   
-  const getBadgeColor = () => {
-    if (!quote) return '';
+  // Calculate the total value for a supplier's selected items
+  const getSupplierTotal = (supplierId: number) => {
+    if (!quote) return 0;
     
-    switch (quote.status) {
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
+    return quote.items
+      .filter(item => item.supplierId === supplierId && item.selected)
+      .reduce((sum, item) => sum + item.totalValue, 0);
   };
   
-  const getStatusText = () => {
-    if (!quote) return '';
-    
-    switch (quote.status) {
-      case 'approved':
-        return 'Aprovada';
-      case 'rejected':
-        return 'Rejeitada';
-      default:
-        return 'Pendente';
-    }
-  };
-  
-  if (isLoading) {
+  if (isLoading || !quote) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
           <div className="section-padding">
             <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[50vh]">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
               <span className="ml-2">Carregando detalhes da cotação...</span>
             </div>
           </div>
@@ -188,32 +176,8 @@ const QuoteDetail = () => {
     );
   }
   
-  if (error || !quote) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
-          <div className="section-padding">
-            <div className="max-w-7xl mx-auto">
-              <Button variant="ghost" size="icon" onClick={handleBack} className="mb-4">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <h2 className="text-xl font-bold mb-2">Cotação não encontrada</h2>
-                    <p className="text-muted-foreground">
-                      A cotação solicitada não existe ou não está disponível.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const supplierGroups = getSupplierItems();
+  const supplierIds = Object.keys(supplierGroups).map(Number);
   
   return (
     <div className="min-h-screen bg-background">
@@ -221,145 +185,73 @@ const QuoteDetail = () => {
       <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
         <div className="section-padding">
           <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={handleBack}>
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <div>
-                  <h2 className="text-2xl font-bold">Detalhes da Cotação</h2>
-                  <p className="text-muted-foreground">
-                    Visualize os detalhes da cotação
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={handlePrint}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir
-                </Button>
-                
-                {quote.status === 'pending' && (
-                  <>
-                    <Button variant="destructive" onClick={handleReject}>
-                      Rejeitar
-                    </Button>
-                    <Button onClick={handleApprove}>
-                      <Check className="h-4 w-4 mr-2" />
-                      Aprovar
-                    </Button>
-                  </>
-                )}
-              </div>
+            <div className="flex items-center gap-4 mb-6">
+              <Button variant="ghost" size="icon" onClick={handleBack}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h2 className="text-2xl font-bold">Aprovação de Cotação</h2>
             </div>
             
-            <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle>Cotação {quote.code}</CardTitle>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor()}`}>
-                    {getStatusText()}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <FileText className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Título</p>
-                      <p className="font-medium">{quote.title}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <Calendar className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Data</p>
-                      <p className="font-medium">{formatDate(quote.date)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Valor Total</p>
-                      <p className="font-medium">
-                        {quote.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <CardTitle>Comparativo de Fornecedores</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">Selecionar</TableHead>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Fornecedor</TableHead>
-                      <TableHead className="text-center">Quantidade</TableHead>
-                      <TableHead className="text-center">Valor Unitário</TableHead>
-                      <TableHead className="text-center">Valor Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {quote.items.map((item) => (
-                      <TableRow key={item.itemId}>
-                        <TableCell>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {supplierIds.map((supplierId, index) => {
+                const supplier = supplierGroups[supplierId];
+                const areAllSelected = supplier.items.every(item => item.selected);
+                
+                return (
+                  <Card key={supplierId} className="border-2">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-center">
+                        <CardTitle>Fornecedor {index + 1}</CardTitle>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span>Selecionar todos</span>
+                          <Checkbox 
+                            checked={areAllSelected}
+                            onCheckedChange={(checked) => toggleAllItems(supplierId, !!checked)}
+                          />
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-0 pt-0">
+                      {supplier.items.map((item) => (
+                        <div 
+                          key={`${supplierId}-${item.itemId}`} 
+                          className="flex justify-between items-center py-2 border-b bg-primary/10"
+                        >
+                          <span className="text-white font-medium pl-2">Item: {item.itemName}</span>
                           <Checkbox 
                             checked={item.selected}
-                            onCheckedChange={() => toggleItemSelection(item.itemId)}
+                            onCheckedChange={() => toggleItemSelection(supplierId, item.itemId)}
+                            className="mr-2"
                           />
-                        </TableCell>
-                        <TableCell>{item.itemName}</TableCell>
-                        <TableCell>{item.supplierName}</TableCell>
-                        <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-center">
-                          {item.unitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {item.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                        </div>
+                      ))}
+                      
+                      <div className="flex justify-center items-center py-4 mt-4 bg-primary text-white font-medium">
+                        <DollarSign className="h-5 w-5 mr-1" />
+                        Valor: {getSupplierTotal(supplierId).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
             
-            <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <CardTitle>Resumo por Fornecedor</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getSupplierSummary().map((supplier, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <h3 className="font-medium mb-2">{supplier.name}</h3>
-                      <p className="text-sm">
-                        Valor Total: <span className="font-semibold">
-                          {supplier.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </span>
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex justify-end gap-4 mt-8">
+              <Button 
+                variant="destructive" 
+                onClick={handleReject}
+                className="bg-orange-500 hover:bg-orange-600 px-8"
+              >
+                Negar
+              </Button>
+              <Button 
+                onClick={handleApprove}
+                className="bg-primary hover:bg-primary/90 px-8"
+              >
+                <CheckSquare className="h-4 w-4 mr-2" />
+                Aprovar
+              </Button>
+            </div>
           </div>
         </div>
       </main>
