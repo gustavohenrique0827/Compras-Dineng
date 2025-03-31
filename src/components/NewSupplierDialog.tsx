@@ -35,8 +35,10 @@ const supplierSchema = z.object({
   email: z.string().email('Email inválido')
 });
 
+type SupplierFormValues = z.infer<typeof supplierSchema>;
+
 const NewSupplierDialog = ({ open, onOpenChange, onSupplierAdded }: NewSupplierDialogProps) => {
-  const form = useForm<z.infer<typeof supplierSchema>>({
+  const form = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
       nome: '',
@@ -46,8 +48,16 @@ const NewSupplierDialog = ({ open, onOpenChange, onSupplierAdded }: NewSupplierD
     }
   });
 
-  const handleSubmit = (values: z.infer<typeof supplierSchema>) => {
-    onSupplierAdded(values);
+  const handleSubmit = (values: SupplierFormValues) => {
+    // The problem is here: values type and the onSupplierAdded parameter type are different
+    // Type assertion to ensure all fields are treated as required
+    onSupplierAdded({
+      nome: values.nome,
+      cnpj: values.cnpj,
+      telefone: values.telefone,
+      email: values.email
+    });
+    
     form.reset();
     onOpenChange(false);
     toast.success('Fornecedor adicionado com sucesso!');
