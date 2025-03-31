@@ -13,8 +13,6 @@ import Suppliers from "./pages/Suppliers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import QuoteForm from "./pages/QuoteForm";
-import QuoteDetail from "./pages/QuoteDetail";
 
 const queryClient = new QueryClient();
 
@@ -30,8 +28,6 @@ const App = () => (
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestDetail />} />
           <Route path="/purchases" element={<Purchases />} />
-          <Route path="/purchases/new" element={<QuoteForm />} />
-          <Route path="/purchases/:id" element={<QuoteDetail />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
