@@ -22,3 +22,18 @@ export const updateQuote = async (id: number, status: string, approvedBy?: strin
     throw error;
   }
 };
+
+// Get quotes for a request
+export const getQuotesForRequest = async (requestId: number) => {
+  // Mock implementation
+  return [
+    {
+      id: 101,
+      code: 'CC-3308',
+      title: 'Reparo de moto',
+      date: '2023-06-15',
+      status: 'pending',
+      totalValue: 550
+    }
+  ];
+};
