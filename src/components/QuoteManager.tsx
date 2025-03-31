@@ -18,7 +18,7 @@ interface Quote {
   code: string;
   title: string;
   date: string;
-  status: string; // Changed to string to match API response
+  status: string;
   totalValue: number;
 }
 

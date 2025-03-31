@@ -1,6 +1,26 @@
 
 import { createQuote, updateQuoteStatus } from '@/utils/database';
 
+// Define Quote interface to match the components
+export interface Quote {
+  id: number;
+  code: string;
+  title: string;
+  date: string;
+  status: string;
+  totalValue: number;
+  items?: Array<{
+    itemId: number;
+    supplierId: number;
+    supplierName: string;
+    itemName: string;
+    quantity: number;
+    unitValue: number;
+    totalValue: number;
+    selected: boolean;
+  }>;
+}
+
 // Create new quote
 export const createNewQuote = async (quoteData: any) => {
   try {
@@ -24,7 +44,7 @@ export const updateQuote = async (id: number, status: string, approvedBy?: strin
 };
 
 // Get quotes for a request
-export const getQuotesForRequest = async (requestId: number) => {
+export const getQuotesForRequest = async (requestId: number): Promise<Quote[]> => {
   console.log(`Fetching quotes for request ${requestId}`);
   // Mock implementation
   return [
@@ -33,14 +53,14 @@ export const getQuotesForRequest = async (requestId: number) => {
       code: 'CC-3308',
       title: 'Reparo de moto',
       date: '2023-06-15',
-      status: 'pending', // This string value needs to be consistent with the Quote interface
+      status: 'pending',
       totalValue: 550
     }
   ];
 };
 
 // Get quote details by ID
-export const getQuoteById = async (quoteId: number) => {
+export const getQuoteById = async (quoteId: number): Promise<Quote> => {
   console.log(`Fetching quote details for ID ${quoteId}`);
   // Mock implementation
   return {
@@ -48,7 +68,7 @@ export const getQuoteById = async (quoteId: number) => {
     code: 'CC-3308',
     title: 'Reparo de moto',
     date: '2023-06-15',
-    status: 'pending', // This string value needs to be consistent with the Quote interface
+    status: 'pending',
     totalValue: 550,
     items: [
       { itemId: 1, supplierId: 1, supplierName: 'Fornecedor A Ltda', itemName: 'Peça de Motor', quantity: 2, unitValue: 150, totalValue: 300, selected: true },
