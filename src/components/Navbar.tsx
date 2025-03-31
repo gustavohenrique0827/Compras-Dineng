@@ -5,7 +5,7 @@ import {
   Home, 
   FilePlus, 
   FileSearch, 
-  ShoppingBag, 
+  FileText, 
   Users, 
   BarChart3, 
   Settings, 
@@ -90,8 +90,8 @@ const Navbar: React.FC = () => {
         />
         <NavItem 
           to="/purchases" 
-          icon={<ShoppingBag size={20} />} 
-          label="Compras" 
+          icon={<FileText size={20} />} 
+          label="Cotações" 
           active={location.pathname.includes('/purchases')} 
           onClick={handleNavItemClick}
         />
