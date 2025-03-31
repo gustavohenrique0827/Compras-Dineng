@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,12 +11,14 @@ import {
   Calendar,
   DollarSign,
   Check,
-  Printer
+  Printer,
+  Loader2
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import { getQuoteById, updateQuote } from '@/api/quotes';
 
 interface QuoteItem {
   itemId: number;
@@ -42,24 +45,26 @@ const QuoteDetail = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { id } = useParams();
+  const quoteId = Number(id);
   
-  const [quote, setQuote] = useState<Quote>({
-    id: Number(id),
-    code: 'CC-3308',
-    title: 'Reparo de moto',
-    date: '2023-06-15',
-    status: 'pending',
-    totalValue: 550,
-    items: [
-      { itemId: 1, supplierId: 1, supplierName: 'Fornecedor A Ltda', itemName: 'Peça de Motor', quantity: 2, unitValue: 150, totalValue: 300, selected: true },
-      { itemId: 2, supplierId: 1, supplierName: 'Fornecedor A Ltda', itemName: 'Filtro de Óleo', quantity: 1, unitValue: 45, totalValue: 45, selected: true },
-      { itemId: 3, supplierId: 3, supplierName: 'Fornecedor C ME', itemName: 'Óleo Lubrificante', quantity: 3, unitValue: 25, totalValue: 75, selected: true },
-      { itemId: 4, supplierId: 2, supplierName: 'Fornecedor B S.A.', itemName: 'Pastilha de Freio', quantity: 4, unitValue: 32.5, totalValue: 130, selected: true },
-    ]
+  // Use React Query to fetch quote data
+  const { data: quoteData, isLoading, error } = useQuery({
+    queryKey: ['quote', quoteId],
+    queryFn: () => getQuoteById(quoteId),
+    enabled: !!quoteId && !isNaN(quoteId)
   });
   
+  const [quote, setQuote] = useState<Quote | null>(null);
+  
+  // Update local state when query data changes
+  React.useEffect(() => {
+    if (quoteData) {
+      setQuote(quoteData);
+    }
+  }, [quoteData]);
+  
   const handleBack = () => {
-    navigate('/purchases');
+    navigate('/cotacoes');
   };
   
   const handlePrint = () => {
@@ -67,17 +72,35 @@ const QuoteDetail = () => {
     // Implementação futura da função de impressão
   };
   
-  const handleApprove = () => {
-    setQuote({ ...quote, status: 'approved' });
-    toast.success('Cotação aprovada com sucesso!');
+  const handleApprove = async () => {
+    if (!quote) return;
+    
+    try {
+      await updateQuote(quote.id, 'approved');
+      setQuote({ ...quote, status: 'approved' });
+      toast.success('Cotação aprovada com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao aprovar cotação');
+      console.error(error);
+    }
   };
   
-  const handleReject = () => {
-    setQuote({ ...quote, status: 'rejected' });
-    toast.error('Cotação rejeitada.');
+  const handleReject = async () => {
+    if (!quote) return;
+    
+    try {
+      await updateQuote(quote.id, 'rejected');
+      setQuote({ ...quote, status: 'rejected' });
+      toast.error('Cotação rejeitada.');
+    } catch (error) {
+      toast.error('Erro ao rejeitar cotação');
+      console.error(error);
+    }
   };
   
   const toggleItemSelection = (itemId: number) => {
+    if (!quote) return;
+    
     setQuote({
       ...quote,
       items: quote.items.map(item => {
@@ -107,6 +130,8 @@ const QuoteDetail = () => {
   };
   
   const getSupplierSummary = () => {
+    if (!quote) return [];
+    
     const supplierSummary: { [key: number]: { name: string, total: number } } = {};
     
     quote.items.forEach(item => {
@@ -125,6 +150,8 @@ const QuoteDetail = () => {
   };
   
   const getBadgeColor = () => {
+    if (!quote) return '';
+    
     switch (quote.status) {
       case 'approved':
         return 'bg-green-100 text-green-800';
@@ -136,6 +163,8 @@ const QuoteDetail = () => {
   };
   
   const getStatusText = () => {
+    if (!quote) return '';
+    
     switch (quote.status) {
       case 'approved':
         return 'Aprovada';
@@ -145,6 +174,49 @@ const QuoteDetail = () => {
         return 'Pendente';
     }
   };
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
+          <div className="section-padding">
+            <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[50vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">Carregando detalhes da cotação...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
+  if (error || !quote) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
+          <div className="section-padding">
+            <div className="max-w-7xl mx-auto">
+              <Button variant="ghost" size="icon" onClick={handleBack} className="mb-4">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center py-8">
+                    <h2 className="text-xl font-bold mb-2">Cotação não encontrada</h2>
+                    <p className="text-muted-foreground">
+                      A cotação solicitada não existe ou não está disponível.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-background">

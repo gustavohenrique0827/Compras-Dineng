@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -9,9 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Check, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Quote {
@@ -19,16 +17,6 @@ interface Quote {
   code: string;
   title: string;
   date: string;
-  items: {
-    itemId: number;
-    supplierId: number;
-    supplierName: string;
-    itemName: string;
-    quantity: number;
-    unitValue: number;
-    totalValue: number;
-    selected: boolean;
-  }[];
   status: 'pending' | 'approved' | 'rejected';
   totalValue: number;
 }
@@ -37,26 +25,11 @@ interface QuoteManagerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   requestId: number;
+  quotes: Quote[];
 }
 
-const QuoteManager = ({ open, onOpenChange, requestId }: QuoteManagerProps) => {
+const QuoteManager = ({ open, onOpenChange, requestId, quotes = [] }: QuoteManagerProps) => {
   const navigate = useNavigate();
-  const [quotes, setQuotes] = useState<Quote[]>([
-    {
-      id: 101,
-      code: 'CC-3308',
-      title: 'Reparo de moto',
-      date: '2023-06-15',
-      status: 'pending',
-      totalValue: 550,
-      items: [
-        { itemId: 1, supplierId: 1, supplierName: 'Fornecedor A Ltda', itemName: 'Peça de Motor', quantity: 2, unitValue: 150, totalValue: 300, selected: true },
-        { itemId: 2, supplierId: 1, supplierName: 'Fornecedor A Ltda', itemName: 'Filtro de Óleo', quantity: 1, unitValue: 45, totalValue: 45, selected: true },
-        { itemId: 3, supplierId: 3, supplierName: 'Fornecedor C ME', itemName: 'Óleo Lubrificante', quantity: 3, unitValue: 25, totalValue: 75, selected: true },
-        { itemId: 4, supplierId: 2, supplierName: 'Fornecedor B S.A.', itemName: 'Pastilha de Freio', quantity: 4, unitValue: 32.5, totalValue: 130, selected: true },
-      ]
-    }
-  ]);
   
   const handleViewQuote = (quoteId: number) => {
     navigate(`/cotacoes/${quoteId}`);

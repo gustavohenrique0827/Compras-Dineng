@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ClipboardList } from 'lucide-react';
 import QuoteManager from './QuoteManager';
+import { useQuery } from '@tanstack/react-query';
+import { getQuotesForRequest } from '@/api/quotes';
 
 interface ManageQuotesButtonProps {
   requestId: number;
@@ -11,6 +13,13 @@ interface ManageQuotesButtonProps {
 
 const ManageQuotesButton = ({ requestId, status }: ManageQuotesButtonProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Prefetch quotes data
+  const { data: quotes } = useQuery({
+    queryKey: ['quotes', requestId],
+    queryFn: () => getQuotesForRequest(requestId),
+    enabled: status === 'Em Cotação'
+  });
   
   // Somente mostrar o botão se o status for "Em Cotação"
   if (status !== 'Em Cotação') {
@@ -32,6 +41,7 @@ const ManageQuotesButton = ({ requestId, status }: ManageQuotesButtonProps) => {
         open={dialogOpen} 
         onOpenChange={setDialogOpen} 
         requestId={requestId} 
+        quotes={quotes || []}
       />
     </>
   );
