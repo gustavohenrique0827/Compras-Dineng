@@ -33,7 +33,7 @@ export const getQuotesForRequest = async (requestId: number) => {
       code: 'CC-3308',
       title: 'Reparo de moto',
       date: '2023-06-15',
-      status: 'pending',
+      status: 'pending', // This string value needs to be consistent with the Quote interface
       totalValue: 550
     }
   ];
@@ -48,7 +48,7 @@ export const getQuoteById = async (quoteId: number) => {
     code: 'CC-3308',
     title: 'Reparo de moto',
     date: '2023-06-15',
-    status: 'pending',
+    status: 'pending', // This string value needs to be consistent with the Quote interface
     totalValue: 550,
     items: [
       { itemId: 1, supplierId: 1, supplierName: 'Fornecedor A Ltda', itemName: 'Peça de Motor', quantity: 2, unitValue: 150, totalValue: 300, selected: true },

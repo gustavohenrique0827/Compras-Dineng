@@ -12,12 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
+// Updated Quote interface to match ManageQuotesButton
 interface Quote {
   id: number;
   code: string;
   title: string;
   date: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: string; // Changed to string to match API response
   totalValue: number;
 }
 

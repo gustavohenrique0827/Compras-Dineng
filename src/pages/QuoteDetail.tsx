@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/Navbar';
@@ -37,7 +36,7 @@ interface Quote {
   title: string;
   date: string;
   items: QuoteItem[];
-  status: 'pending' | 'approved' | 'rejected';
+  status: string;
   totalValue: number;
 }
 
@@ -47,7 +46,6 @@ const QuoteDetail = () => {
   const { id } = useParams();
   const quoteId = Number(id);
   
-  // Use React Query to fetch quote data
   const { data: quoteData, isLoading, error } = useQuery({
     queryKey: ['quote', quoteId],
     queryFn: () => getQuoteById(quoteId),
@@ -56,10 +54,9 @@ const QuoteDetail = () => {
   
   const [quote, setQuote] = useState<Quote | null>(null);
   
-  // Update local state when query data changes
   React.useEffect(() => {
     if (quoteData) {
-      setQuote(quoteData);
+      setQuote(quoteData as Quote);
     }
   }, [quoteData]);
   

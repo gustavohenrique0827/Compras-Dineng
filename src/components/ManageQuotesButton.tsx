@@ -11,6 +11,16 @@ interface ManageQuotesButtonProps {
   status: string;
 }
 
+// Updated Quote interface to match the API response
+interface Quote {
+  id: number;
+  code: string;
+  title: string;
+  date: string;
+  status: string; // Changed from union type to string to match API response
+  totalValue: number;
+}
+
 const ManageQuotesButton = ({ requestId, status }: ManageQuotesButtonProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   
