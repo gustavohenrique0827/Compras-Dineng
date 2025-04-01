@@ -6,29 +6,27 @@ import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Input } from '@/components/ui/input';
 import { 
-  ChevronDown, 
   Plus, 
-  X,
-  Check,
-  Save
+  Save,
+  Trash
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
+
+interface QuoteItem {
+  id: number;
+  name: string;
+  quantity: number;
+  unitValue: number;
+  totalValue: number;
+}
 
 interface SupplierQuote {
   supplierId: number;
   supplierName: string;
-  items: {
-    id: number;
-    name: string;
-    quantity: number;
-    unitValue: number;
-    totalValue: number;
-    selected: boolean;
-  }[];
+  items: QuoteItem[];
 }
 
 const QuoteForm = () => {
@@ -36,18 +34,10 @@ const QuoteForm = () => {
   const navigate = useNavigate();
   const [quoteTitle, setQuoteTitle] = useState('Reparo de moto');
   const [quoteCode, setQuoteCode] = useState('CC-3308');
-  const [supplierQuotes, setSupplierQuotes] = useState<SupplierQuote[]>([
-    {
-      supplierId: 1,
-      supplierName: 'Fornecedor A Ltda',
-      items: [
-        { id: 1, name: 'Peça de Motor', quantity: 2, unitValue: 150.00, totalValue: 300.00, selected: false },
-        { id: 2, name: 'Filtro de Óleo', quantity: 1, unitValue: 45.00, totalValue: 45.00, selected: false },
-        { id: 3, name: 'Óleo Lubrificante', quantity: 3, unitValue: 30.00, totalValue: 90.00, selected: false },
-        { id: 4, name: 'Pastilha de Freio', quantity: 4, unitValue: 25.00, totalValue: 100.00, selected: false },
-      ]
-    }
-  ]);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemQuantity, setNewItemQuantity] = useState(1);
+  
+  const [supplierQuotes, setSupplierQuotes] = useState<SupplierQuote[]>([]);
 
   const [suppliers, setSuppliers] = useState([
     { id: 1, nome: 'Fornecedor A Ltda', cnpj: '12.345.678/0001-90' },
@@ -68,12 +58,7 @@ const QuoteForm = () => {
     const newSupplierQuote: SupplierQuote = {
       supplierId: selectedSupplier.id,
       supplierName: selectedSupplier.nome,
-      items: [
-        { id: 1, name: 'Peça de Motor', quantity: 2, unitValue: 0, totalValue: 0, selected: false },
-        { id: 2, name: 'Filtro de Óleo', quantity: 1, unitValue: 0, totalValue: 0, selected: false },
-        { id: 3, name: 'Óleo Lubrificante', quantity: 3, unitValue: 0, totalValue: 0, selected: false },
-        { id: 4, name: 'Pastilha de Freio', quantity: 4, unitValue: 0, totalValue: 0, selected: false },
-      ]
+      items: []
     };
 
     setSupplierQuotes([...supplierQuotes, newSupplierQuote]);
@@ -83,6 +68,45 @@ const QuoteForm = () => {
   const removeSupplier = (supplierId: number) => {
     setSupplierQuotes(supplierQuotes.filter(sq => sq.supplierId !== supplierId));
     toast.info('Fornecedor removido da cotação.');
+  };
+
+  const addItemToSupplier = (supplierId: number) => {
+    if (!newItemName.trim()) {
+      toast.error('Por favor, informe o nome do item.');
+      return;
+    }
+
+    setSupplierQuotes(supplierQuotes.map(sq => {
+      if (sq.supplierId === supplierId) {
+        const newItem: QuoteItem = {
+          id: sq.items.length > 0 ? Math.max(...sq.items.map(item => item.id)) + 1 : 1,
+          name: newItemName,
+          quantity: newItemQuantity,
+          unitValue: 0,
+          totalValue: 0
+        };
+        return {
+          ...sq,
+          items: [...sq.items, newItem]
+        };
+      }
+      return sq;
+    }));
+
+    setNewItemName('');
+    setNewItemQuantity(1);
+  };
+
+  const removeItemFromSupplier = (supplierId: number, itemId: number) => {
+    setSupplierQuotes(supplierQuotes.map(sq => {
+      if (sq.supplierId === supplierId) {
+        return {
+          ...sq,
+          items: sq.items.filter(item => item.id !== itemId)
+        };
+      }
+      return sq;
+    }));
   };
 
   const updateItemUnitValue = (supplierId: number, itemId: number, value: number) => {
@@ -106,7 +130,7 @@ const QuoteForm = () => {
     }));
   };
 
-  const toggleItemSelection = (supplierId: number, itemId: number) => {
+  const updateItemQuantity = (supplierId: number, itemId: number, quantity: number) => {
     setSupplierQuotes(supplierQuotes.map(sq => {
       if (sq.supplierId === supplierId) {
         return {
@@ -115,7 +139,8 @@ const QuoteForm = () => {
             if (item.id === itemId) {
               return {
                 ...item,
-                selected: !item.selected
+                quantity,
+                totalValue: item.unitValue * quantity
               };
             }
             return item;
@@ -126,50 +151,25 @@ const QuoteForm = () => {
     }));
   };
 
-  const toggleSelectAll = (supplierId: number, selected: boolean) => {
-    setSupplierQuotes(supplierQuotes.map(sq => {
-      if (sq.supplierId === supplierId) {
-        return {
-          ...sq,
-          items: sq.items.map(item => ({
-            ...item,
-            selected
-          }))
-        };
-      }
-      return sq;
-    }));
-  };
-
   const getTotalValue = () => {
     let total = 0;
     supplierQuotes.forEach(sq => {
       sq.items.forEach(item => {
-        if (item.selected) {
-          total += item.totalValue;
-        }
+        total += item.totalValue;
       });
     });
     return total;
   };
 
   const handleSaveQuote = () => {
-    const selectedItems = supplierQuotes.flatMap(sq => 
-      sq.items
-        .filter(item => item.selected)
-        .map(item => ({
-          itemId: item.id,
-          supplierName: sq.supplierName,
-          supplierId: sq.supplierId,
-          itemName: item.name,
-          quantity: item.quantity,
-          unitValue: item.unitValue,
-          totalValue: item.totalValue
-        }))
-    );
+    if (supplierQuotes.length === 0) {
+      toast.error('Adicione pelo menos um fornecedor para salvar a cotação.');
+      return;
+    }
 
-    if (selectedItems.length === 0) {
-      toast.error('Selecione pelo menos um item para salvar a cotação.');
+    const anyItems = supplierQuotes.some(sq => sq.items.length > 0);
+    if (!anyItems) {
+      toast.error('Adicione pelo menos um item para algum fornecedor.');
       return;
     }
 
@@ -177,7 +177,7 @@ const QuoteForm = () => {
       code: quoteCode,
       title: quoteTitle,
       date: new Date().toISOString(),
-      items: selectedItems,
+      suppliers: supplierQuotes,
       totalValue: getTotalValue()
     };
 
@@ -197,178 +197,175 @@ const QuoteForm = () => {
         <div className="section-padding">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold">Nova Cotação</h2>
-              <p className="text-muted-foreground">
-                Crie uma nova cotação para solicitação de compra
-              </p>
+              <h2 className="text-2xl font-bold text-center">Nova Cotação</h2>
             </div>
             
             <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <CardTitle>Informações da Cotação</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Código</label>
-                    <Input 
-                      value={quoteCode} 
-                      onChange={(e) => setQuoteCode(e.target.value)} 
-                      placeholder="Código da cotação" 
-                    />
+                    <h3 className="text-lg font-semibold">Cotação</h3>
+                    <div className="flex items-center gap-2">
+                      <div className="text-base">{quoteCode}</div>
+                      <div className="text-base">{quoteTitle}</div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Título</label>
-                    <Input 
-                      value={quoteTitle} 
-                      onChange={(e) => setQuoteTitle(e.target.value)} 
-                      placeholder="Título da cotação" 
-                    />
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="flex-grow">
+                      <Select onValueChange={(value) => addSupplier(parseInt(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um fornecedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers
+                            .filter(supplier => !supplierQuotes.some(sq => sq.supplierId === supplier.id))
+                            .map(supplier => (
+                              <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                                {supplier.nome}
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        const selectTrigger = document.querySelector('[id^="radix-:"]');
+                        if (selectTrigger) {
+                          (selectTrigger as HTMLElement).click();
+                        }
+                      }}
+                      className="bg-green-500 hover:bg-green-600"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar
+                    </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
             
-            {supplierQuotes.map((supplierQuote, index) => (
+            {supplierQuotes.map((supplierQuote) => (
               <Card key={supplierQuote.supplierId} className="glass-card animate-fadeIn mb-6">
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Fornecedor: {supplierQuote.supplierName}</CardTitle>
-                  </div>
+                  <CardTitle>Fornecedor: {supplierQuote.supplierName}</CardTitle>
                   <Button 
                     variant="destructive" 
                     size="sm" 
                     onClick={() => removeSupplier(supplierQuote.supplierId)}
                     className="h-8"
                   >
-                    <X className="h-4 w-4 mr-1" /> Remover
+                    <Trash className="h-4 w-4 mr-1" /> Remover
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Checkbox 
-                        id={`select-all-${supplierQuote.supplierId}`} 
-                        checked={supplierQuote.items.every(item => item.selected)}
-                        onCheckedChange={(checked) => toggleSelectAll(supplierQuote.supplierId, !!checked)}
-                        className="mr-2"
+                  <div className="mb-4 space-y-4">
+                    <div className="flex gap-2">
+                      <Input 
+                        placeholder="Nome do item" 
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
                       />
-                      <label 
-                        htmlFor={`select-all-${supplierQuote.supplierId}`}
-                        className="text-sm font-medium cursor-pointer"
-                      >
-                        Selecionar todos
-                      </label>
+                      <Input 
+                        type="number" 
+                        placeholder="Quantidade" 
+                        value={newItemQuantity}
+                        onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
+                        className="w-24"
+                        min="1"
+                      />
+                      <Button onClick={() => addItemToSupplier(supplierQuote.supplierId)}>
+                        <Plus className="h-4 w-4 mr-1" /> Item
+                      </Button>
                     </div>
                   </div>
 
-                  <Table>
-                    <TableHeader>
+                  <Table className="border">
+                    <TableHeader className="bg-blue-800 text-white">
                       <TableRow>
-                        <TableHead className="w-12">Selecionar</TableHead>
-                        <TableHead>Item</TableHead>
-                        <TableHead className="text-center">Quantidade</TableHead>
-                        <TableHead className="text-center">Valor Unitário</TableHead>
-                        <TableHead className="text-center">Valor Total</TableHead>
+                        <TableHead className="text-white">Item</TableHead>
+                        <TableHead className="text-center text-white">Quant</TableHead>
+                        <TableHead className="text-center text-white">Valor unitário</TableHead>
+                        <TableHead className="text-center text-white">Valor total</TableHead>
+                        <TableHead className="text-center text-white w-20">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {supplierQuote.items.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <Checkbox 
-                              checked={item.selected}
-                              onCheckedChange={() => toggleItemSelection(supplierQuote.supplierId, item.id)}
-                            />
-                          </TableCell>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell className="text-center">{item.quantity}</TableCell>
-                          <TableCell>
-                            <Input 
-                              type="number" 
-                              value={item.unitValue === 0 ? '' : item.unitValue}
-                              onChange={(e) => updateItemUnitValue(
-                                supplierQuote.supplierId, 
-                                item.id, 
-                                parseFloat(e.target.value) || 0
-                              )}
-                              className="max-w-[150px] mx-auto text-right"
-                              placeholder="0,00"
-                              step="0.01"
-                              min="0"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {item.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      {supplierQuote.items.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4">
+                            Nenhum item adicionado para este fornecedor.
                           </TableCell>
                         </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-right font-medium">
-                          Subtotal (Itens selecionados):
-                        </TableCell>
-                        <TableCell className="text-center font-medium">
-                          {supplierQuote.items
-                            .filter(item => item.selected)
-                            .reduce((sum, item) => sum + item.totalValue, 0)
-                            .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                          }
-                        </TableCell>
-                      </TableRow>
+                      ) : (
+                        supplierQuote.items.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell>{item.name}</TableCell>
+                            <TableCell className="text-center">
+                              <Input 
+                                type="number" 
+                                value={item.quantity} 
+                                onChange={(e) => updateItemQuantity(
+                                  supplierQuote.supplierId,
+                                  item.id,
+                                  parseInt(e.target.value) || 1
+                                )}
+                                className="max-w-[80px] mx-auto text-center"
+                                min="1"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number" 
+                                value={item.unitValue === 0 ? '' : item.unitValue}
+                                onChange={(e) => updateItemUnitValue(
+                                  supplierQuote.supplierId, 
+                                  item.id, 
+                                  parseFloat(e.target.value) || 0
+                                )}
+                                className="max-w-[150px] mx-auto text-right"
+                                placeholder="0,00"
+                                step="0.01"
+                                min="0"
+                              />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {item.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => removeItemFromSupplier(supplierQuote.supplierId, item.id)}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                      {supplierQuote.items.length > 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right font-medium">
+                            Subtotal:
+                          </TableCell>
+                          <TableCell className="text-center font-medium">
+                            {supplierQuote.items
+                              .reduce((sum, item) => sum + item.totalValue, 0)
+                              .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                            }
+                          </TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
             ))}
             
-            <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <CardTitle>Adicionar Fornecedor</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-grow">
-                    <Select onValueChange={(value) => addSupplier(parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um fornecedor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers
-                          .filter(supplier => !supplierQuotes.some(sq => sq.supplierId === supplier.id))
-                          .map(supplier => (
-                            <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                              {supplier.nome}
-                            </SelectItem>
-                          ))
-                        }
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      const selectTrigger = document.querySelector('[id^="radix-:"]');
-                      if (selectTrigger) {
-                        (selectTrigger as HTMLElement).click();
-                      }
-                    }}
-                    className="min-w-[140px]"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <div className="flex justify-between items-center mb-6">
-              <div className="text-lg font-semibold">
-                Valor Total (Itens selecionados): 
-                <span className="ml-2 text-primary">
-                  {getTotalValue().toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </span>
-              </div>
-              
-              <Button onClick={handleSaveQuote} size="lg" className="min-w-[180px]">
+            <div className="flex justify-end mb-6">
+              <Button onClick={handleSaveQuote} size="lg" className="min-w-[180px] bg-green-500 hover:bg-green-600">
                 <Save className="h-4 w-4 mr-2" /> 
                 Salvar Cotação
               </Button>
