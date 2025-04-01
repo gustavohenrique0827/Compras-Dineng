@@ -23,6 +23,7 @@ import Navbar from '@/components/Navbar';
 import StatusBadge from '@/components/StatusBadge';
 import ItemTable from '@/components/ItemTable';
 import ApprovalFlow from '@/components/ApprovalFlow';
+import QuoteComparison from '@/components/QuoteComparison';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -49,7 +50,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { fetchRequestById, updateStatus } from '@/api/requests';
-import { createNewQuote } from '@/api/quotes';
+import { createNewQuote, updateQuote } from '@/api/quotes';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const formatDate = (dateString: string) => {
@@ -94,6 +95,36 @@ const RequestDetail: React.FC = () => {
     prazo_entrega: '',
     local_entrega: ''
   });
+  
+  const supplierQuotes = [
+    {
+      id: 1,
+      name: "1",
+      items: [
+        { id: 1, itemName: "Peça de reposição", quantity: 1, price: 120.00, supplierId: 1 },
+        { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1 },
+        { id: 3, itemName: "Material consumível", quantity: 1, price: 30.00, supplierId: 1 }
+      ]
+    },
+    {
+      id: 2,
+      name: "2",
+      items: [
+        { id: 4, itemName: "Peça de reposição", quantity: 1, price: 135.00, supplierId: 2 },
+        { id: 5, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2 },
+        { id: 6, itemName: "Material consumível", quantity: 1, price: 25.00, supplierId: 2 }
+      ]
+    },
+    {
+      id: 3,
+      name: "3",
+      items: [
+        { id: 7, itemName: "Peça de reposição", quantity: 1, price: 110.00, supplierId: 3 },
+        { id: 8, itemName: "Ferramenta", quantity: 1, price: 95.00, supplierId: 3 },
+        { id: 9, itemName: "Material consumível", quantity: 1, price: 35.00, supplierId: 3 }
+      ]
+    }
+  ];
   
   const { data: request, isLoading, error } = useQuery({
     queryKey: ['request', id],
@@ -188,10 +219,22 @@ const RequestDetail: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['request', id] });
   };
 
-  const handleSaveQuote = () => {
-    toast.success("Cotação registrada com sucesso");
+  const handleSaveQuote = (selectedItems: any[]) => {
+    toast.success("Cotação finalizada com sucesso");
     setShowQuoteDialog(false);
+    
+    // In a real app, you would save the selected items via an API call
+    // createNewQuote({ requestId: id, items: selectedItems });
+    
+    // Update the request status to "Approved for purchase"
+    // updateStatus(Number(id), "Aprovado para Compra");
+    
     queryClient.invalidateQueries({ queryKey: ['request', id] });
+  };
+  
+  const handleCancelQuote = () => {
+    setShowQuoteDialog(false);
+    toast.info("Operação cancelada");
   };
   
   if (isLoading) {
@@ -251,17 +294,17 @@ const RequestDetail: React.FC = () => {
                 </Button>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-bold">Solicitação #{request.id}</h2>
-                    <StatusBadge type="status" value={request.status} />
+                    <h2 className="text-2xl font-bold">Solicitação #{request?.id}</h2>
+                    <StatusBadge type="status" value={request?.status} />
                   </div>
                   <p className="text-muted-foreground">
-                    Criada em {formatDate(request.data_solicitacao)}
+                    Criada em {request && formatDate(request.data_solicitacao)}
                   </p>
                 </div>
               </div>
               
               <div className="flex flex-wrap gap-2">
-                {request.status === 'Solicitado' && (
+                {request?.status === 'Solicitado' && (
                   <>
                     <Button 
                       variant="outline" 
@@ -290,21 +333,21 @@ const RequestDetail: React.FC = () => {
                   </>
                 )}
                 
-                {['Aprovado', 'Em Cotação'].includes(request.status) && (
+                {['Aprovado', 'Em Cotação'].includes(request?.status || '') && (
                   <Button onClick={handleManageQuotes}>
                     <CircleDollarSign className="mr-2 h-4 w-4" />
                     Gerenciar Cotações
                   </Button>
                 )}
                 
-                {request.status === 'Aprovado para Compra' && (
+                {request?.status === 'Aprovado para Compra' && (
                   <Button onClick={handleFinalizePurchase}>
                     <PackageCheck className="mr-2 h-4 w-4" />
                     Finalizar Aquisição
                   </Button>
                 )}
                 
-                {!['Finalizado', 'Rejeitado'].includes(request.status) && (
+                {!['Finalizado', 'Rejeitado'].includes(request?.status || '') && (
                   <Button variant="outline" onClick={handleEditRequest}>
                     <FileEdit className="mr-2 h-4 w-4" />
                     Editar
@@ -719,131 +762,16 @@ const RequestDetail: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Gerenciar Cotações</DialogTitle>
             <DialogDescription>
-              Adicione ou edite cotações para a solicitação #{request.id}
+              Compare e selecione as melhores ofertas para a solicitação #{request?.id}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6 py-4">
-            <div className="border rounded-lg p-4">
-              <h3 className="font-medium text-lg mb-4">Adicionar Nova Cotação</h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Fornecedor</label>
-                  <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                    <option value="">Selecione um fornecedor</option>
-                    <option value="1">Fornecedor A Ltda</option>
-                    <option value="2">Fornecedor B S.A.</option>
-                    <option value="3">Fornecedor C ME</option>
-                    <option value="4">Fornecedor D EPP</option>
-                  </select>
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Prazo de Entrega</label>
-                  <Input type="date" />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Valor Total</label>
-                  <Input type="number" step="0.01" placeholder="0,00" />
-                </div>
-                
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Condições</label>
-                  <Input placeholder="Ex: Pagamento em 30 dias" />
-                </div>
-              </div>
-              
-              <h4 className="font-medium text-sm mb-2">Itens da Cotação</h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-2">Item</th>
-                      <th className="text-left py-2 px-2">Quantidade</th>
-                      <th className="text-left py-2 px-2">Preço Unitário</th>
-                      <th className="text-left py-2 px-2">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {request.items?.map((item: any) => (
-                      <tr key={item.id} className="border-b">
-                        <td className="py-2 px-2">{item.descricao}</td>
-                        <td className="py-2 px-2">{item.quantidade}</td>
-                        <td className="py-2 px-2">
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            className="w-28 h-8" 
-                            placeholder="0,00" 
-                          />
-                        </td>
-                        <td className="py-2 px-2">R$ 0,00</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={3} className="text-right py-2 px-2 font-medium">Total:</td>
-                      <td className="py-2 px-2 font-bold">R$ 0,00</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              
-              <div className="mt-4 flex justify-end">
-                <Button>
-                  Adicionar Cotação
-                </Button>
-              </div>
-            </div>
-            
-            {request.quotes && request.quotes.length > 0 && (
-              <div>
-                <h3 className="font-medium text-lg mb-4">Cotações Existentes</h3>
-                <div className="space-y-4">
-                  {request.quotes.map((quote: any) => (
-                    <div key={quote.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4 className="font-medium">{quote.fornecedor}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Prazo: {formatDate(quote.prazo_entrega)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold">{formatCurrency(quote.preco)}</div>
-                          <StatusBadge type="status" value={quote.status} />
-                        </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        <p>Condições: {quote.condicoes}</p>
-                      </div>
-                      <div className="mt-4 flex justify-end gap-2">
-                        <Button variant="outline" size="sm">Editar</Button>
-                        <Button 
-                          variant={quote.status === 'Aprovado' ? 'outline' : 'default'} 
-                          size="sm" 
-                          disabled={quote.status === 'Aprovado'}
-                        >
-                          {quote.status === 'Aprovado' ? 'Aprovado' : 'Aprovar'}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowQuoteDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveQuote}>
-              Salvar Alterações
-            </Button>
+          <div className="py-4">
+            <QuoteComparison 
+              suppliers={supplierQuotes}
+              onFinish={handleSaveQuote}
+              onCancel={handleCancelQuote}
+            />
           </div>
         </DialogContent>
       </Dialog>
