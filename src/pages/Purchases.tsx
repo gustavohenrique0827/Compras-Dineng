@@ -94,8 +94,8 @@ const Purchases = () => {
     { id: 4, ordem: 'OC-2023-004', fornecedor: 'Fornecedor D', valor: 'R$ 3.600,00', status: 'Finalizada', data: '15/06/2023' },
   ];
 
-  // Dados de exemplo para detalhes da cotação
-  const [quoteDetails] = useState<QuoteDetail[]>([
+  // Dados de exemplo para detalhes da cotação e declarando o setter corretamente
+  const [quoteDetails, setQuoteDetails] = useState<QuoteDetail[]>([
     { id: 1, description: "Peça de reposição", quantity: 2, priceSupplier1: 120, priceSupplier2: 135, priceSupplier3: 110, selectedSupplier: null },
     { id: 2, description: "Ferramenta", quantity: 1, priceSupplier1: 80, priceSupplier2: 75, priceSupplier3: 95, selectedSupplier: null },
     { id: 3, description: "Material consumível", quantity: 5, priceSupplier1: 30, priceSupplier2: 25, priceSupplier3: 35, selectedSupplier: null }
