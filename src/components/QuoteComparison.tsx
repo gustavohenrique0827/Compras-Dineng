@@ -91,10 +91,15 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
     
     onFinish(selectedItems);
   };
+
+  const handleRejectQuote = () => {
+    toast.error("Cotação rejeitada");
+    onCancel();
+  };
   
   return (
     <div className="px-1">
-      <h3 className="text-lg font-semibold bg-blue-600 text-white p-2 mb-4">
+      <h3 className="text-lg font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 mb-4 rounded-md">
         Comparativo de fornecedores
       </h3>
       
@@ -102,7 +107,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
         {suppliers.map(supplier => (
           <div 
             key={supplier.id} 
-            className="bg-blue-600 text-white p-2 flex justify-between items-center"
+            className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 flex justify-between items-center rounded-md"
           >
             <span>Fornecedor {supplier.id}</span>
             <Button 
@@ -133,10 +138,10 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
             );
             
             return (
-              <div key={`${supplier.id}-${supplierItem.id}`} className="flex justify-between items-center">
+              <div key={`${supplier.id}-${supplierItem.id}`} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2 rounded-md">
                 <div>
-                  <div className="bg-blue-600 text-white p-1">{supplierItem.itemName}</div>
-                  <div className="bg-blue-600 text-white p-1">R$ {supplierItem.price.toFixed(2)}</div>
+                  <div className="font-medium">{supplierItem.itemName}</div>
+                  <div className="text-sm text-slate-600 dark:text-slate-400">R$ {supplierItem.price.toFixed(2)}</div>
                 </div>
                 <Checkbox 
                   checked={isSelected}
@@ -155,7 +160,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
           );
           
           return (
-            <div key={`total-${supplier.id}`} className="bg-blue-600 text-white p-2">
+            <div key={`total-${supplier.id}`} className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 rounded-md">
               Valor total: R$ {supplierTotal.toFixed(2)}
             </div>
           );
@@ -163,18 +168,20 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
       </div>
       
       <div className="flex justify-between items-center mb-4">
-        <div className="bg-blue-600 text-white p-2">
+        <div className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 rounded-md">
           Valor total selecionado: R$ {totalSelected.toFixed(2)}
         </div>
         <div className="flex gap-2">
+          <Button variant="destructive" onClick={handleRejectQuote}>
+            Negar Cotação
+          </Button>
           <Button variant="outline" onClick={onCancel}>
             Cancelar
           </Button>
           <Button 
-            className="bg-blue-600 hover:bg-blue-700"
             onClick={handleFinishQuote}
           >
-            Finalizar Cotação
+            Aprovar Cotação
           </Button>
         </div>
       </div>

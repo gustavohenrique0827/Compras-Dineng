@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import Navbar from '@/components/Navbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
@@ -10,12 +10,17 @@ import {
   Calendar,
   DollarSign,
   Check,
-  Printer
+  Printer,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import StatusBadge from '@/components/StatusBadge';
 
 interface QuoteItem {
   itemId: number;
@@ -158,9 +163,14 @@ const QuoteDetail = () => {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <div>
-                  <h2 className="text-2xl font-bold">Detalhes da Cotação</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-bold">Cotação #{quote.code}</h2>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor()}`}>
+                      {getStatusText()}
+                    </span>
+                  </div>
                   <p className="text-muted-foreground">
-                    Visualize os detalhes da cotação
+                    Criada em {formatDate(quote.date)}
                   </p>
                 </div>
               </div>
@@ -173,11 +183,16 @@ const QuoteDetail = () => {
                 
                 {quote.status === 'pending' && (
                   <>
-                    <Button variant="destructive" onClick={handleReject}>
+                    <Button 
+                      variant="outline" 
+                      className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                      onClick={handleReject}
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
                       Rejeitar
                     </Button>
                     <Button onClick={handleApprove}>
-                      <Check className="h-4 w-4 mr-2" />
+                      <CheckCircle className="h-4 w-4 mr-2" />
                       Aprovar
                     </Button>
                   </>
@@ -185,112 +200,183 @@ const QuoteDetail = () => {
               </div>
             </div>
             
-            <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle>Cotação {quote.code}</CardTitle>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor()}`}>
-                    {getStatusText()}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <FileText className="h-5 w-5 text-primary" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <Card className="glass-card animate-fadeIn">
+                  <CardHeader>
+                    <CardTitle>{quote.title}</CardTitle>
+                    <CardDescription>Detalhes da cotação</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Código</p>
+                          <p className="font-medium">{quote.code}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <Calendar className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Data</p>
+                          <p className="font-medium">{formatDate(quote.date)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-2 rounded-full">
+                          <DollarSign className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Valor Total</p>
+                          <p className="font-medium">
+                            {quote.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </p>
+                        </div>
+                      </div>
                     </div>
+                    
+                    <Separator className="my-6" />
+                    
                     <div>
-                      <p className="text-sm text-muted-foreground">Título</p>
-                      <p className="font-medium">{quote.title}</p>
+                      <h3 className="text-lg font-medium mb-4">Itens da Cotação</h3>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">Selecionar</TableHead>
+                            <TableHead>Item</TableHead>
+                            <TableHead>Fornecedor</TableHead>
+                            <TableHead className="text-center">Quantidade</TableHead>
+                            <TableHead className="text-center">Valor Unitário</TableHead>
+                            <TableHead className="text-center">Valor Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {quote.items.map((item) => (
+                            <TableRow key={item.itemId}>
+                              <TableCell>
+                                <Checkbox 
+                                  checked={item.selected}
+                                  onCheckedChange={() => toggleItemSelection(item.itemId)}
+                                />
+                              </TableCell>
+                              <TableCell>{item.itemName}</TableCell>
+                              <TableCell>{item.supplierName}</TableCell>
+                              <TableCell className="text-center">{item.quantity}</TableCell>
+                              <TableCell className="text-center">
+                                {item.unitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {item.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <Calendar className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Data</p>
-                      <p className="font-medium">{formatDate(quote.date)}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <DollarSign className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Valor Total</p>
-                      <p className="font-medium">
-                        {quote.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <CardTitle>Comparativo de Fornecedores</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">Selecionar</TableHead>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Fornecedor</TableHead>
-                      <TableHead className="text-center">Quantidade</TableHead>
-                      <TableHead className="text-center">Valor Unitário</TableHead>
-                      <TableHead className="text-center">Valor Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {quote.items.map((item) => (
-                      <TableRow key={item.itemId}>
-                        <TableCell>
-                          <Checkbox 
-                            checked={item.selected}
-                            onCheckedChange={() => toggleItemSelection(item.itemId)}
-                          />
-                        </TableCell>
-                        <TableCell>{item.itemName}</TableCell>
-                        <TableCell>{item.supplierName}</TableCell>
-                        <TableCell className="text-center">{item.quantity}</TableCell>
-                        <TableCell className="text-center">
-                          {item.unitValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {item.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card animate-fadeIn mb-6">
-              <CardHeader>
-                <CardTitle>Resumo por Fornecedor</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getSupplierSummary().map((supplier, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <h3 className="font-medium mb-2">{supplier.name}</h3>
-                      <p className="text-sm">
-                        Valor Total: <span className="font-semibold">
-                          {supplier.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="space-y-6">
+                <Card className="glass-card animate-fadeIn">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Status da Cotação</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Status atual</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getBadgeColor()}`}>
+                          {getStatusText()}
                         </span>
-                      </p>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="pt-2">
+                        <h4 className="text-sm font-medium mb-3">Etapas do Processo</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                              quote.status !== 'pending' 
+                                ? 'bg-green-100 text-green-600' 
+                                : 'bg-blue-100 text-blue-600'
+                            }`}>
+                              {quote.status !== 'pending' 
+                                ? <CheckCircle className="h-4 w-4" />
+                                : <Clock className="h-4 w-4" />
+                              }
+                            </div>
+                            <span className="text-sm">Criação</span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                              quote.status === 'approved' || quote.status === 'rejected'
+                                ? 'bg-green-100 text-green-600'
+                                : 'bg-gray-100 text-gray-400'
+                            }`}>
+                              {quote.status === 'approved' || quote.status === 'rejected'
+                                ? <CheckCircle className="h-4 w-4" />
+                                : <Clock className="h-4 w-4" />
+                              }
+                            </div>
+                            <span className="text-sm">Análise</span>
+                          </div>
+                          
+                          <div className="flex items-center">
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center mr-3 ${
+                              quote.status === 'approved'
+                                ? 'bg-green-100 text-green-600'
+                                : 'bg-gray-100 text-gray-400'
+                            }`}>
+                              {quote.status === 'approved'
+                                ? <CheckCircle className="h-4 w-4" />
+                                : <Clock className="h-4 w-4" />
+                              }
+                            </div>
+                            <span className="text-sm">Aprovação</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+                
+                <Card className="glass-card animate-fadeIn">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Resumo por Fornecedor</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {getSupplierSummary().map((supplier, index) => (
+                        <div key={index} className="border rounded-lg p-3">
+                          <h3 className="font-medium mb-1">{supplier.name}</h3>
+                          <p className="text-sm">
+                            Valor Total: <span className="font-semibold">
+                              {supplier.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                          </p>
+                        </div>
+                      ))}
+                      
+                      <Separator className="my-2" />
+                      
+                      <div className="font-medium text-right">
+                        Total Selecionado: {quote.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         </div>
       </main>
