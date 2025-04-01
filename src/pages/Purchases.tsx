@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +48,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import QuoteComparison from '@/components/QuoteComparison';
 
 // Interface para cotações
 interface Quote {
@@ -95,7 +95,7 @@ const Purchases = () => {
   ];
 
   // Dados de exemplo para detalhes da cotação
-  const [quoteDetails, setQuoteDetails] = useState<QuoteDetail[]>([
+  const [quoteDetails] = useState<QuoteDetail[]>([
     { id: 1, description: "Peça de reposição", quantity: 2, priceSupplier1: 120, priceSupplier2: 135, priceSupplier3: 110, selectedSupplier: null },
     { id: 2, description: "Ferramenta", quantity: 1, priceSupplier1: 80, priceSupplier2: 75, priceSupplier3: 95, selectedSupplier: null },
     { id: 3, description: "Material consumível", quantity: 5, priceSupplier1: 30, priceSupplier2: 25, priceSupplier3: 35, selectedSupplier: null }
@@ -108,6 +108,37 @@ const Purchases = () => {
     { id: 3, nome: 'Fornecedor C ME' },
     { id: 4, nome: 'Fornecedor D EPP' },
   ]);
+
+  // Dados de exemplo para QuoteComparison
+  const supplierQuotes = [
+    {
+      id: 1,
+      name: "1",
+      items: [
+        { id: 1, itemName: "Peça de reposição", quantity: 2, price: 120.00, supplierId: 1 },
+        { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1 },
+        { id: 3, itemName: "Material consumível", quantity: 5, price: 30.00, supplierId: 1 }
+      ]
+    },
+    {
+      id: 2,
+      name: "2",
+      items: [
+        { id: 4, itemName: "Peça de reposição", quantity: 2, price: 135.00, supplierId: 2 },
+        { id: 5, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2 },
+        { id: 6, itemName: "Material consumível", quantity: 5, price: 25.00, supplierId: 2 }
+      ]
+    },
+    {
+      id: 3,
+      name: "3",
+      items: [
+        { id: 7, itemName: "Peça de reposição", quantity: 2, price: 110.00, supplierId: 3 },
+        { id: 8, itemName: "Ferramenta", quantity: 1, price: 95.00, supplierId: 3 },
+        { id: 9, itemName: "Material consumível", quantity: 5, price: 35.00, supplierId: 3 }
+      ]
+    }
+  ];
   
   const handleNewQuote = () => {
     setOpenQuoteDialog(true);
@@ -219,6 +250,13 @@ const Purchases = () => {
     }
     
     toast.success("Cotação finalizada com sucesso!");
+    setOpenDetailsDialog(false);
+  };
+
+  // Mock function for handling the completion of quote comparison
+  const handleQuoteComparisonFinish = (selectedItems: any[]) => {
+    console.log("Selected items:", selectedItems);
+    toast.success("Detalhes da cotação visualizados");
     setOpenDetailsDialog(false);
   };
   
@@ -531,139 +569,13 @@ const Purchases = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Fornecedor:</label>
-                <Select defaultValue="all">
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um fornecedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os fornecedores</SelectItem>
-                    {suppliers.map(supplier => (
-                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                        {supplier.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Item</TableHead>
-                    <TableHead>Quant.</TableHead>
-                    <TableHead>Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {quoteDetails.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell>{item.quantity}</TableCell>
-                      <TableCell>R$ {item.priceSupplier1.toFixed(2).replace('.', ',')}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              <div className="mt-8">
-                <h3 className="text-lg font-medium mb-4">Comparativo de fornecedores</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-1/4">Fornecedor 1</TableHead>
-                      <TableHead className="w-1/4">Fornecedor 2</TableHead>
-                      <TableHead className="w-1/4">Fornecedor 3</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {quoteDetails.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <div>{item.description}</div>
-                              <div className="text-sm text-muted-foreground">
-                                R$ {item.priceSupplier1.toFixed(2).replace('.', ',')}
-                              </div>
-                            </div>
-                            <Checkbox 
-                              className="text-blue-500 border-blue-500" 
-                              checked={item.selectedSupplier === 1}
-                              onCheckedChange={() => handleSupplierSelection(item.id, 1)}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <div>{item.description}</div>
-                              <div className="text-sm text-muted-foreground">
-                                R$ {item.priceSupplier2.toFixed(2).replace('.', ',')}
-                              </div>
-                            </div>
-                            <Checkbox 
-                              className="text-blue-500 border-blue-500" 
-                              checked={item.selectedSupplier === 2}
-                              onCheckedChange={() => handleSupplierSelection(item.id, 2)}
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <div>{item.description}</div>
-                              <div className="text-sm text-muted-foreground">
-                                R$ {item.priceSupplier3.toFixed(2).replace('.', ',')}
-                              </div>
-                            </div>
-                            <Checkbox 
-                              className="text-blue-500 border-blue-500" 
-                              checked={item.selectedSupplier === 3}
-                              onCheckedChange={() => handleSupplierSelection(item.id, 3)}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow>
-                      <TableCell className="font-bold">
-                        Valor total: R$ {quoteDetails.reduce((total, item) => total + (item.priceSupplier1 * item.quantity), 0).toFixed(2).replace('.', ',')}
-                      </TableCell>
-                      <TableCell className="font-bold">
-                        Valor total: R$ {quoteDetails.reduce((total, item) => total + (item.priceSupplier2 * item.quantity), 0).toFixed(2).replace('.', ',')}
-                      </TableCell>
-                      <TableCell className="font-bold">
-                        Valor total: R$ {quoteDetails.reduce((total, item) => total + (item.priceSupplier3 * item.quantity), 0).toFixed(2).replace('.', ',')}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="mt-6 pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <div className="font-medium">
-                    Valor total selecionado: 
-                    <span className="font-bold ml-2">
-                      R$ {calculateSelectedTotal().toFixed(2).replace('.', ',')}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setOpenDetailsDialog(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleFinalizeQuote}>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Finalizar Cotação
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="py-4">
+            <QuoteComparison 
+              suppliers={supplierQuotes}
+              onFinish={handleQuoteComparisonFinish}
+              onCancel={() => setOpenDetailsDialog(false)}
+              viewOnly={true}
+            />
           </div>
         </DialogContent>
       </Dialog>

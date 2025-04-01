@@ -22,12 +22,14 @@ interface QuoteComparisonProps {
   suppliers: Supplier[];
   onFinish: (selectedItems: QuoteItem[]) => void;
   onCancel: () => void;
+  viewOnly?: boolean;
 }
 
 const QuoteComparison: React.FC<QuoteComparisonProps> = ({ 
   suppliers, 
   onFinish, 
-  onCancel 
+  onCancel,
+  viewOnly = false
 }) => {
   const [selectedItems, setSelectedItems] = useState<QuoteItem[]>([]);
   const [totalSelected, setTotalSelected] = useState<number>(0);
@@ -41,6 +43,8 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
   
   // Toggle item selection
   const toggleItem = (item: QuoteItem) => {
+    if (viewOnly) return;
+    
     // Remove any existing selection for this item (from any supplier)
     const newSelection = selectedItems.filter(
       selectedItem => selectedItem.itemName !== item.itemName
@@ -58,6 +62,8 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
   
   // Select all items from a specific supplier
   const selectAllFromSupplier = (supplierId: number) => {
+    if (viewOnly) return;
+    
     // First, remove any items that are already selected for the unique item names
     const itemsFromSupplier = suppliers
       .find(s => s.id === supplierId)?.items || [];
@@ -99,25 +105,27 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
   
   return (
     <div className="px-1">
-      <h3 className="text-lg font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 mb-4 rounded-md">
-        Comparativo de fornecedores
+      <h3 className="text-lg font-semibold p-2 mb-4 rounded-md border-b">
+        {viewOnly ? "Detalhes da Cotação" : "Comparativo de fornecedores"}
       </h3>
       
       <div className="grid grid-cols-3 gap-2 mb-4">
         {suppliers.map(supplier => (
           <div 
             key={supplier.id} 
-            className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 flex justify-between items-center rounded-md"
+            className="p-2 flex justify-between items-center rounded-md border"
           >
             <span>Fornecedor {supplier.id}</span>
-            <Button 
-              variant="secondary" 
-              size="sm" 
-              className="text-xs"
-              onClick={() => selectAllFromSupplier(supplier.id)}
-            >
-              Selecionar Todos
-            </Button>
+            {!viewOnly && (
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="text-xs"
+                onClick={() => selectAllFromSupplier(supplier.id)}
+              >
+                Selecionar Todos
+              </Button>
+            )}
           </div>
         ))}
       </div>
@@ -138,15 +146,17 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
             );
             
             return (
-              <div key={`${supplier.id}-${supplierItem.id}`} className="flex justify-between items-center bg-slate-50 dark:bg-slate-900 p-2 rounded-md">
+              <div key={`${supplier.id}-${supplierItem.id}`} className="flex justify-between items-center p-2 rounded-md border">
                 <div>
                   <div className="font-medium">{supplierItem.itemName}</div>
                   <div className="text-sm text-slate-600 dark:text-slate-400">R$ {supplierItem.price.toFixed(2)}</div>
                 </div>
-                <Checkbox 
-                  checked={isSelected}
-                  onCheckedChange={() => toggleItem(supplierItem)}
-                />
+                {!viewOnly ? (
+                  <Checkbox 
+                    checked={isSelected}
+                    onCheckedChange={() => toggleItem(supplierItem)}
+                  />
+                ) : null}
               </div>
             );
           })}
@@ -160,31 +170,33 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
           );
           
           return (
-            <div key={`total-${supplier.id}`} className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 rounded-md">
+            <div key={`total-${supplier.id}`} className="p-2 rounded-md border">
               Valor total: R$ {supplierTotal.toFixed(2)}
             </div>
           );
         })}
       </div>
       
-      <div className="flex justify-between items-center mb-4">
-        <div className="bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100 p-2 rounded-md">
-          Valor total selecionado: R$ {totalSelected.toFixed(2)}
+      {!viewOnly && (
+        <div className="flex justify-between items-center mb-4">
+          <div className="p-2 rounded-md border">
+            Valor total selecionado: R$ {totalSelected.toFixed(2)}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="destructive" onClick={handleRejectQuote}>
+              Negar Cotação
+            </Button>
+            <Button variant="outline" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleFinishQuote}
+            >
+              Aprovar Cotação
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="destructive" onClick={handleRejectQuote}>
-            Negar Cotação
-          </Button>
-          <Button variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleFinishQuote}
-          >
-            Aprovar Cotação
-          </Button>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
