@@ -1,5 +1,5 @@
 
-import { createQuote, updateQuoteStatus, getAllRequests } from '@/utils/database';
+import { createQuote, updateQuoteStatus, getAllRequests, Request } from '@/utils/database';
 import { toast } from 'sonner';
 
 interface QuoteItem {

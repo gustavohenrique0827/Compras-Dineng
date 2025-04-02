@@ -3,12 +3,13 @@ import {
   getAllRequests, 
   getRequestById, 
   createRequest, 
-  updateRequestStatus 
+  updateRequestStatus,
+  Request
 } from '@/utils/database';
 import { toast } from 'sonner';
 
 // Fetch all requests
-export const fetchRequests = async () => {
+export const fetchRequests = async (): Promise<Request[]> => {
   try {
     const requests = await getAllRequests();
     return requests;

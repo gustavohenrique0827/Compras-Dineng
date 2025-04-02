@@ -12,20 +12,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { toast } from 'sonner';
 import { fetchQuoteRequests } from '@/api/quotes';
 import { useQuery } from '@tanstack/react-query';
-import { getAllSuppliers } from '@/utils/database';
+import { getAllSuppliers, Request, Supplier } from '@/utils/database';
 
 const QuoteForm = () => {
   const isMobile = useIsMobile();
   const [costCenter, setCostCenter] = useState('');
-  const [availableRequests, setAvailableRequests] = useState<any[]>([]);
+  const [availableRequests, setAvailableRequests] = useState<Request[]>([]);
   
   // Fetch available requests for quotation
   const { data: requests = [], isLoading: loadingRequests } = useQuery({
     queryKey: ['quoteRequests'],
     queryFn: fetchQuoteRequests,
-    onError: (error) => {
-      console.error('Error fetching requests:', error);
-      toast.error('Erro ao carregar solicitações disponíveis');
+    meta: {
+      onSettled: (data: any, error: any) => {
+        if (error) {
+          console.error('Error fetching requests:', error);
+          toast.error('Erro ao carregar solicitações disponíveis');
+        }
+      }
     }
   });
   
@@ -33,9 +37,13 @@ const QuoteForm = () => {
   const { data: suppliersList = [], isLoading: loadingSuppliers } = useQuery({
     queryKey: ['suppliers'],
     queryFn: getAllSuppliers,
-    onError: (error) => {
-      console.error('Error fetching suppliers:', error);
-      toast.error('Erro ao carregar fornecedores');
+    meta: {
+      onSettled: (data: any, error: any) => {
+        if (error) {
+          console.error('Error fetching suppliers:', error);
+          toast.error('Erro ao carregar fornecedores');
+        }
+      }
     }
   });
   

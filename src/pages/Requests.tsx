@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -24,35 +23,19 @@ import { fetchRequests } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { Status, Priority } from '@/utils/mockData';
-
-// Type definition for a request
-interface Request {
-  id: number;
-  nome_solicitante: string;
-  aplicacao: string;
-  centro_custo: string;
-  data_solicitacao: string;
-  local_entrega: string;
-  prazo_entrega: string;
-  categoria: string;
-  motivo: string;
-  prioridade: string;
-  data_limite: string;
-  status: string;
-}
+import { Request } from '@/utils/database';
 
 const Requests = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // Changed from empty string to 'all'
-  const [priorityFilter, setPriorityFilter] = useState('all'); // Changed from empty string to 'all'
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
   
   // Fetch requests data with proper error handling
   const { data: requests = [], isLoading, error } = useQuery({
     queryKey: ['requests'],
     queryFn: fetchRequests,
-    // Using onSettled in meta for error handling instead of onError
     meta: {
       onSettled: (data: any, error: any) => {
         if (error) {
@@ -64,7 +47,7 @@ const Requests = () => {
   });
   
   // Apply filters to the list of requests
-  const filteredRequests = (requests as Request[]).filter(request => {
+  const filteredRequests = requests.filter(request => {
     const matchesSearch = 
       request.aplicacao.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.nome_solicitante.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,6 +68,8 @@ const Requests = () => {
         const connected = await testConnection();
         if (connected) {
           toast.success('Conectado com sucesso ao banco de dados');
+        } else {
+          toast.info('Usando modo simulado sem conexão com o banco de dados');
         }
       } catch (error) {
         console.error('Database connection error:', error);
