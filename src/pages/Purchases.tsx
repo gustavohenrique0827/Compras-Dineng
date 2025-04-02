@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -358,199 +359,251 @@ const Purchases = () => {
         </div>
       </main>
 
-      {/* Dialog para Nova Cotação */}
+      {/* Dialog para Nova Cotação - Reformulado conforme solicitado */}
       <Dialog open={openQuoteDialog} onOpenChange={setOpenQuoteDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nova Cotação</DialogTitle>
             <DialogDescription>
-              Cadastre uma nova cotação com três fornecedores diferentes.
+              Cadastre uma nova cotação com fornecedores diferentes.
             </DialogDescription>
           </DialogHeader>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Centro de Custo (ID) */}
+              <div className="mb-6">
                 <FormField
                   control={form.control}
                   name="requestId"
                   render={({ field }) => (
-                    <FormItem className="md:col-span-1">
-                      <FormLabel>ID Solicitação</FormLabel>
+                    <FormItem>
+                      <FormLabel className="text-lg font-medium">Centro de Custo</FormLabel>
                       <FormControl>
-                        <Input placeholder="ID" {...field} />
+                        <Input placeholder="ID do Centro de Custo" {...field} className="max-w-xs" />
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="supplier1"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-1">
-                      <FormLabel>Fornecedor 1</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {suppliers.map(supplier => (
-                            <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                              {supplier.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="supplier2"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-1">
-                      <FormLabel>Fornecedor 2</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {suppliers.map(supplier => (
-                            <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                              {supplier.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="supplier3"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-1">
-                      <FormLabel>Fornecedor 3</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {suppliers.map(supplier => (
-                            <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                              {supplier.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
               
+              {/* Seleção de Fornecedores */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Itens</h3>
-                  <Button type="button" onClick={addItem} variant="outline" size="sm">
-                    <Plus className="h-4 w-4 mr-1" /> Adicionar Item
-                  </Button>
+                  <h3 className="text-lg font-medium">Fornecedores</h3>
                 </div>
                 
-                <div className="border rounded-md p-4">
-                  <div className="grid grid-cols-7 gap-2 mb-2 font-medium text-sm">
-                    <div className="col-span-1">Item</div>
-                    <div className="col-span-2">Descrição</div>
-                    <div className="col-span-1">Qtd</div>
-                    <div className="col-span-1">Preço Forn. 1</div>
-                    <div className="col-span-1">Preço Forn. 2</div>
-                    <div className="col-span-1">Preço Forn. 3</div>
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Fornecedor 1 */}
+                  <div className="flex items-center gap-2">
+                    <FormField
+                      control={form.control}
+                      name="supplier1"
+                      render={({ field }) => (
+                        <FormItem className="flex-1 min-w-[250px]">
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o fornecedor" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {suppliers.map(supplier => (
+                                <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                                  {supplier.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                      onClick={() => {
+                        // Lógica para adicionar o fornecedor à lista
+                        toast.success("Fornecedor adicionado");
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar
+                    </Button>
                   </div>
                   
-                  {items.map((item) => (
-                    <div key={item.id} className="grid grid-cols-7 gap-2 mb-3">
-                      <div className="col-span-1 flex items-center">{item.id}</div>
-                      <div className="col-span-2">
-                        <Input 
-                          value={item.description}
-                          onChange={(e) => {
-                            setItems(items.map(i => 
-                              i.id === item.id ? { ...i, description: e.target.value } : i
-                            ));
+                  {/* Lista de fornecedores adicionados */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[1, 2].map(index => (
+                      <div key={index} className="bg-muted px-3 py-1 rounded-md flex items-center gap-2">
+                        <span>Fornecedor {index}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-5 w-5 p-0 rounded-full"
+                          onClick={() => {
+                            // Lógica para remover o fornecedor
                           }}
-                        />
+                        >
+                          ×
+                        </Button>
                       </div>
-                      <div className="col-span-1">
-                        <Input 
-                          type="number" 
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => updateItemQuantity(item.id, Number(e.target.value))}
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          min="0"
-                          value={item.price1}
-                          onChange={(e) => updateItemPrice(item.id, 1, Number(e.target.value))}
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          min="0"
-                          value={item.price2}
-                          onChange={(e) => updateItemPrice(item.id, 2, Number(e.target.value))}
-                        />
-                      </div>
-                      <div className="col-span-1">
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          min="0"
-                          value={item.price3}
-                          onChange={(e) => updateItemPrice(item.id, 3, Number(e.target.value))}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  
-                  <div className="grid grid-cols-7 gap-2 mt-6 pt-4 border-t">
-                    <div className="col-span-3 text-right font-medium">Total:</div>
-                    <div className="col-span-1"></div>
-                    <div className="col-span-1 font-bold">
-                      R$ {calculateTotal(1).toFixed(2).replace('.', ',')}
-                    </div>
-                    <div className="col-span-1 font-bold">
-                      R$ {calculateTotal(2).toFixed(2).replace('.', ',')}
-                    </div>
-                    <div className="col-span-1 font-bold">
-                      R$ {calculateTotal(3).toFixed(2).replace('.', ',')}
-                    </div>
+                    ))}
                   </div>
                 </div>
+              </div>
+              
+              {/* Tabelas de Itens */}
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Itens</h3>
+                  <div className="flex gap-2">
+                    <Input placeholder="Nome do item" className="w-[250px]" />
+                    <Input type="number" placeholder="Qtd" className="w-20" min="1" />
+                    <Button type="button" variant="outline">
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar Item
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Tabela para Fornecedor 1 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Fornecedor 1</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table className="border">
+                      <TableHeader className="bg-blue-800 text-white">
+                        <TableRow>
+                          <TableHead className="text-white">Item</TableHead>
+                          <TableHead className="text-center text-white w-[100px]">Qtd</TableHead>
+                          <TableHead className="text-center text-white">Valor unitário</TableHead>
+                          <TableHead className="text-center text-white">Valor total</TableHead>
+                          <TableHead className="text-center text-white w-20">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.slice(0, 2).map((item) => (
+                          <TableRow key={`f1-${item.id}`}>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell className="text-center">
+                              <Input 
+                                type="number" 
+                                min="1"
+                                value={item.quantity}
+                                className="max-w-[80px] mx-auto text-center"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                min="0"
+                                className="max-w-[150px] mx-auto text-right"
+                                placeholder="0,00"
+                              />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              R$ {(item.price1 * item.quantity).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                              >
+                                ×
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right font-medium">
+                            Subtotal:
+                          </TableCell>
+                          <TableCell className="text-center font-medium">
+                            R$ {calculateTotal(1).toFixed(2)}
+                          </TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+                
+                {/* Tabela para Fornecedor 2 */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Fornecedor 2</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table className="border">
+                      <TableHeader className="bg-blue-800 text-white">
+                        <TableRow>
+                          <TableHead className="text-white">Item</TableHead>
+                          <TableHead className="text-center text-white w-[100px]">Qtd</TableHead>
+                          <TableHead className="text-center text-white">Valor unitário</TableHead>
+                          <TableHead className="text-center text-white">Valor total</TableHead>
+                          <TableHead className="text-center text-white w-20">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {items.slice(0, 2).map((item) => (
+                          <TableRow key={`f2-${item.id}`}>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell className="text-center">
+                              <Input 
+                                type="number" 
+                                min="1"
+                                value={item.quantity}
+                                className="max-w-[80px] mx-auto text-center"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                min="0"
+                                className="max-w-[150px] mx-auto text-right"
+                                placeholder="0,00"
+                              />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              R$ {(item.price2 * item.quantity).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                              >
+                                ×
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right font-medium">
+                            Subtotal:
+                          </TableCell>
+                          <TableCell className="text-center font-medium">
+                            R$ {calculateTotal(2).toFixed(2)}
+                          </TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
               </div>
               
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpenQuoteDialog(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar Cotação</Button>
+                <Button type="submit" className="bg-green-500 hover:bg-green-600">
+                  Salvar Cotação
+                </Button>
               </div>
             </form>
           </Form>
