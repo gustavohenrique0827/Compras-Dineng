@@ -1,69 +1,158 @@
-# Welcome to your Lovable project
 
-## Project info
+# SISDINENG - Sistema de Compras
 
-**URL**: https://lovable.dev/projects/2a54574d-0d2c-48f4-a950-c7368e055469
+## Estrutura do Projeto
 
-## How can I edit this code?
+Este projeto é composto por duas partes principais:
 
-There are several ways of editing your application.
+1. **Frontend** - Uma aplicação React que roda no navegador
+2. **Backend** - Uma API Node.js/Express que se conecta ao banco de dados MySQL
 
-**Use Lovable**
+## Configuração do Ambiente
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/2a54574d-0d2c-48f4-a950-c7368e055469) and start prompting.
+### Pré-requisitos
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js (v14 ou superior)
+- MySQL Server (configurado conforme as credenciais em server/.env)
 
-**Use your preferred IDE**
+### Instalação
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Clone o repositório
+2. Instale as dependências do frontend:
+   ```
+   npm install
+   ```
+3. Instale as dependências do backend:
+   ```
+   cd server
+   npm install
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Banco de Dados
 
-Follow these steps:
+O sistema está configurado para conectar a um banco de dados MySQL com as seguintes credenciais:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- Host: 192.168.0.249
+- Usuário: dineng
+- Senha: dineng@@2025
+- Banco: sisdineng
+- Porta: 3306
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Para configurar o banco de dados, você precisará:
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. Criar o banco de dados sisdineng
+2. Criar as tabelas necessárias (veja a estrutura abaixo)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### Estrutura do Banco de Dados
+
+```sql
+-- Exemplo de estrutura do banco de dados
+CREATE TABLE solicitacoes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome_solicitante VARCHAR(100) NOT NULL,
+  aplicacao VARCHAR(100) NOT NULL,
+  centro_custo VARCHAR(50) NOT NULL,
+  data_solicitacao DATE NOT NULL,
+  local_entrega VARCHAR(100) NOT NULL,
+  prazo_entrega DATE NOT NULL,
+  categoria VARCHAR(50) NOT NULL,
+  motivo TEXT NOT NULL,
+  prioridade VARCHAR(20) NOT NULL,
+  status VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE itens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  descricao VARCHAR(200) NOT NULL,
+  quantidade INT NOT NULL,
+  solicitacao_id INT NOT NULL,
+  id_solicitante INT NOT NULL,
+  FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes(id)
+);
+
+CREATE TABLE aprovacoes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  solicitacao_id INT NOT NULL,
+  etapa VARCHAR(50) NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  aprovado_por VARCHAR(100) NOT NULL,
+  nivel_aprovacao VARCHAR(50) NOT NULL,
+  data_aprovacao DATE NOT NULL,
+  motivo_rejeicao TEXT,
+  FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes(id)
+);
+
+CREATE TABLE cotacoes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  solicitacao_id INT NOT NULL,
+  fornecedor VARCHAR(100) NOT NULL,
+  preco DECIMAL(10,2) NOT NULL,
+  prazo_entrega VARCHAR(50) NOT NULL,
+  condicoes TEXT NOT NULL,
+  nivel_aprovacao VARCHAR(50) NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  aprovado_por VARCHAR(100),
+  FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes(id)
+);
+
+CREATE TABLE fornecedores (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(100) NOT NULL,
+  categoria VARCHAR(50) NOT NULL,
+  contato VARCHAR(100) NOT NULL,
+  telefone VARCHAR(20) NOT NULL,
+  email VARCHAR(100) NOT NULL,
+  endereco TEXT NOT NULL
+);
 ```
 
-**Edit a file directly in GitHub**
+## Executando o Projeto
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Desenvolvimento
 
-**Use GitHub Codespaces**
+1. Inicie o servidor backend:
+   ```
+   cd server
+   npm run dev
+   ```
+   O servidor estará rodando em http://localhost:5000
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+2. Em outro terminal, inicie o frontend:
+   ```
+   npm run dev
+   ```
+   O frontend estará disponível em http://localhost:3000
 
-## What technologies are used for this project?
+### Produção
 
-This project is built with .
+Para ambiente de produção, você precisará:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. Construir o frontend:
+   ```
+   npm run build
+   ```
 
-## How can I deploy this project?
+2. Configurar um servidor web (como Nginx ou Apache) para servir os arquivos estáticos gerados na pasta "dist"
 
-Simply open [Lovable](https://lovable.dev/projects/2a54574d-0d2c-48f4-a950-c7368e055469) and click on Share -> Publish.
+3. Iniciar o servidor backend:
+   ```
+   cd server
+   npm start
+   ```
 
-## I want to use a custom domain - is that possible?
+## Funcionamento do Sistema
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Este sistema tem um mecanismo de fallback inteligente:
+
+- Tenta primeiro se conectar ao backend Node.js/Express
+- Se não conseguir, automaticamente cai para dados simulados locais
+
+Isso permite que o aplicativo funcione mesmo quando o backend não está disponível, facilitando o desenvolvimento e demonstrações.
+
+## Recursos Principais
+
+- Gerenciamento de solicitações de compra
+- Aprovação de solicitações
+- Gestão de cotações com múltiplos fornecedores
+- Cadastro e manutenção de fornecedores
+- Relatórios e dashboards
