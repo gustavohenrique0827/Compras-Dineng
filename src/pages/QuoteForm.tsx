@@ -1,19 +1,50 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Save } from 'lucide-react';
+import { Save, Plus, Trash2 } from 'lucide-react';
 import { useQuoteForm } from '@/hooks/useQuoteForm';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { fetchQuoteRequests } from '@/api/quotes';
+import { useQuery } from '@tanstack/react-query';
+import { getAllSuppliers } from '@/utils/database';
 
 const QuoteForm = () => {
   const isMobile = useIsMobile();
+  const [costCenter, setCostCenter] = useState('');
+  const [availableRequests, setAvailableRequests] = useState<any[]>([]);
+  
+  // Fetch available requests for quotation
+  const { data: requests = [], isLoading: loadingRequests } = useQuery({
+    queryKey: ['quoteRequests'],
+    queryFn: fetchQuoteRequests,
+    onError: (error) => {
+      console.error('Error fetching requests:', error);
+      toast.error('Erro ao carregar solicitações disponíveis');
+    }
+  });
+  
+  // Fetch available suppliers
+  const { data: suppliersList = [], isLoading: loadingSuppliers } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: getAllSuppliers,
+    onError: (error) => {
+      console.error('Error fetching suppliers:', error);
+      toast.error('Erro ao carregar fornecedores');
+    }
+  });
+  
+  useEffect(() => {
+    if (requests.length > 0) {
+      setAvailableRequests(requests);
+    }
+  }, [requests]);
+
   const {
     quoteTitle,
     quoteCode,
@@ -29,6 +60,7 @@ const QuoteForm = () => {
     removeItemFromSupplier,
     updateItemUnitValue,
     updateItemQuantity,
+    getTotalValue,
     handleSaveQuote
   } = useQuoteForm();
 
@@ -49,8 +81,19 @@ const QuoteForm = () => {
                 <div className="mb-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold mb-2">ID Cotação</h3>
-                      <div className="text-base font-medium">{quoteCode}</div>
+                      <h3 className="text-lg font-semibold mb-2">ID / Centro de Custo</h3>
+                      <Select onValueChange={setCostCenter}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableRequests.map(request => (
+                            <SelectItem key={request.id} value={request.centro_custo}>
+                              {request.centro_custo} - {request.aplicacao}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold mb-2">Descrição</h3>
@@ -61,7 +104,43 @@ const QuoteForm = () => {
                 
                 {/* Supplier Selection */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold mb-2">Fornecedores</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold">Fornecedores</h3>
+                    <Button 
+                      onClick={() => {
+                        const selectTrigger = document.querySelector('[id^="radix-:"]');
+                        if (selectTrigger) {
+                          (selectTrigger as HTMLElement).click();
+                        }
+                      }}
+                      className="bg-green-500 hover:bg-green-600"
+                      size="sm"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Adicionar Fornecedor
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mb-4">
+                    <Select onValueChange={(value) => addSupplier(parseInt(value))}>
+                      <SelectTrigger className="w-[300px]">
+                        <SelectValue placeholder="Selecione um fornecedor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {loadingSuppliers ? (
+                          <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
+                        ) : (
+                          suppliersList
+                            .filter(supplier => !supplierQuotes.some(sq => sq.supplierId === supplier.id))
+                            .map(supplier => (
+                              <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                                {supplier.nome}
+                              </SelectItem>
+                            ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
                   <div className="flex flex-wrap gap-4">
                     {supplierQuotes.map((sq, index) => (
                       <div key={sq.supplierId} className="bg-muted p-2 rounded-md flex items-center gap-2">
@@ -76,36 +155,6 @@ const QuoteForm = () => {
                         </Button>
                       </div>
                     ))}
-                    
-                    <div className="flex items-center gap-2">
-                      <Select onValueChange={(value) => addSupplier(parseInt(value))}>
-                        <SelectTrigger className="w-[200px]">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {suppliers
-                            .filter(supplier => !supplierQuotes.some(sq => sq.supplierId === supplier.id))
-                            .map(supplier => (
-                              <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                                {supplier.nome}
-                              </SelectItem>
-                            ))
-                          }
-                        </SelectContent>
-                      </Select>
-                      <Button 
-                        onClick={() => {
-                          const selectTrigger = document.querySelector('[id^="radix-:"]');
-                          if (selectTrigger) {
-                            (selectTrigger as HTMLElement).click();
-                          }
-                        }}
-                        className="bg-green-500 hover:bg-green-600"
-                        size="sm"
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> Adicionar
-                      </Button>
-                    </div>
                   </div>
                 </div>
                 
@@ -211,7 +260,7 @@ const QuoteForm = () => {
                                             size="sm"
                                             onClick={() => removeItemFromSupplier(supplierQuote.supplierId, item.id)}
                                           >
-                                            ×
+                                            <Trash2 className="h-4 w-4" />
                                           </Button>
                                         </TableCell>
                                       </TableRow>

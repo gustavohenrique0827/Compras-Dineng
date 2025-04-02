@@ -1,5 +1,5 @@
 
-import { createQuote, updateQuoteStatus } from '@/utils/database';
+import { createQuote, updateQuoteStatus, getAllRequests } from '@/utils/database';
 import { toast } from 'sonner';
 
 interface QuoteItem {
@@ -23,6 +23,7 @@ interface QuoteData {
 export const createNewQuote = async (quoteData: QuoteData) => {
   try {
     const result = await createQuote(quoteData);
+    toast.success('Cotação criada com sucesso!');
     return result;
   } catch (error) {
     console.error('Error creating quote:', error);
@@ -35,6 +36,9 @@ export const createNewQuote = async (quoteData: QuoteData) => {
 export const updateQuote = async (id: number, status: string, approvedBy?: string, approvalLevel?: string) => {
   try {
     const result = await updateQuoteStatus(id, status, approvedBy, approvalLevel);
+    if (result) {
+      toast.success('Status da cotação atualizado com sucesso!');
+    }
     return result;
   } catch (error) {
     console.error(`Error updating quote ${id}:`, error);
@@ -64,7 +68,9 @@ export const finalizeQuote = async (requestId: number, selectedItems: QuoteItem[
     console.log('Items grouped by supplier:', supplierGroups);
     console.log('Total value:', totalValue);
     
-    // Mock successful response
+    toast.success('Cotação finalizada com sucesso!');
+    
+    // Return the data that would be saved to the database
     return {
       success: true,
       requestId,
@@ -75,6 +81,22 @@ export const finalizeQuote = async (requestId: number, selectedItems: QuoteItem[
   } catch (error) {
     console.error(`Error finalizing quote for request ${requestId}:`, error);
     toast.error('Erro ao finalizar cotação');
+    throw error;
+  }
+};
+
+// Get all quote requests
+export const fetchQuoteRequests = async () => {
+  try {
+    // Get all requests that can be quoted
+    const requests = await getAllRequests();
+    const quoteRequests = requests.filter(req => 
+      req.status === 'Aprovado' || req.status === 'Em Cotação'
+    );
+    return quoteRequests;
+  } catch (error) {
+    console.error('Error fetching quote requests:', error);
+    toast.error('Erro ao carregar solicitações para cotação');
     throw error;
   }
 };

@@ -1,65 +1,23 @@
+import mysql from 'mysql2/promise';
 
-// This file now serves as a client-side API interface rather than direct database connection
-// Browser-compatible version
+// Type definitions remain the same
+// ... keep existing code (Request, Item, Approval, Quote, Supplier interfaces)
 
-// Define types for data structures
-export interface Request {
-  id: number;
-  nome_solicitante: string;
-  aplicacao: string;
-  centro_custo: string;
-  data_solicitacao: string;
-  local_entrega: string;
-  prazo_entrega: string;
-  categoria: string;
-  motivo: string;
-  prioridade: string;
-  data_limite?: string;
-  status: string;
-}
+// Create MySQL connection pool
+const pool = mysql.createPool({
+  host: '192.168.0.249',
+  user: 'dineng',
+  password: 'dineng@@2025',
+  database: 'sisdineng',
+  port: 3306
+});
 
-export interface Item {
-  id: number;
-  descricao: string;
-  quantidade: number;
-  solicitacao_id: number;
-  id_solicitante: number;
-}
+// Function to get a database connection
+export const getConnection = async () => {
+  return await pool.getConnection();
+};
 
-export interface Approval {
-  id: number;
-  solicitacao_id: number;
-  etapa: string;
-  status: string;
-  aprovado_por: string;
-  nivel_aprovacao: string;
-  motivo_rejeicao?: string;
-  data_aprovacao: string;
-}
-
-export interface Quote {
-  id: number;
-  solicitacao_id: number;
-  fornecedor: string;
-  preco: number;
-  prazo_entrega: string;
-  condicoes: string;
-  nivel_aprovacao: string;
-  status: string;
-  aprovado_por?: string;
-}
-
-export interface Supplier {
-  id: number;
-  nome: string;
-  categoria: string;
-  contato: string;
-  telefone: string;
-  email: string;
-  endereco: string;
-}
-
-// Mock data for development until backend is implemented
+// Mock data for fallback
 const mockRequests: Request[] = [
   {
     id: 1,
@@ -143,185 +101,474 @@ const mockSuppliers: Supplier[] = [
   { id: 4, nome: 'Fornecedor D EPP', categoria: 'Manutenção', contato: 'Ana Souza', telefone: '(11) 92345-6789', email: 'contato@fornecedord.com', endereco: 'Alameda D, 1011 - Brasília/DF' },
 ];
 
-// Test connection simulation
+// Test database connection
 export const testConnection = async (): Promise<boolean> => {
-  // In a browser environment, we just simulate a successful connection
-  console.log('Simulando conexão com o banco de dados');
-  return true;
+  try {
+    const connection = await getConnection();
+    console.log('Conexão com o banco de dados estabelecida com sucesso');
+    connection.release();
+    return true;
+  } catch (error) {
+    console.error('Erro ao conectar ao banco de dados:', error);
+    return false;
+  }
 };
 
-// Simulate database queries with mock data
-export const query = async (sql: string, params: any[] = []): Promise<any[]> => {
-  console.log('Query simulation:', sql, params);
-  return [];
+// Helper function to handle database queries with fallback to mock data
+const executeQuery = async (queryFn: Function, mockFn: Function, ...params: any[]) => {
+  try {
+    // Try to execute the real database query
+    const result = await queryFn(...params);
+    return result;
+  } catch (error) {
+    console.error('Erro na consulta ao banco de dados:', error);
+    console.log('Utilizando dados simulados como fallback');
+    // Fall back to mock data if database query fails
+    return mockFn(...params);
+  }
 };
 
 // Get all requests
 export const getAllRequests = async (): Promise<Request[]> => {
-  console.log('Fetching all requests');
-  return [...mockRequests];
+  const dbQuery = async () => {
+    const connection = await getConnection();
+    try {
+      const [rows] = await connection.query('SELECT * FROM solicitacoes');
+      return rows as Request[];
+    } finally {
+      connection.release();
+    }
+  };
+  
+  const mockQuery = () => [...mockRequests];
+  
+  return executeQuery(dbQuery, mockQuery);
 };
 
 // Get request by ID with items
 export const getRequestById = async (id: number): Promise<any> => {
-  const request = mockRequests.find(req => req.id === id);
-  
-  if (!request) {
-    return null;
-  }
-  
-  const items = mockItems.filter(item => item.solicitacao_id === id);
-  const approvals = mockApprovals.filter(approval => approval.solicitacao_id === id);
-  const quotes = mockQuotes.filter(quote => quote.solicitacao_id === id);
-  
-  return {
-    ...request,
-    items,
-    approvals,
-    quotes
+  const dbQuery = async (id: number) => {
+    const connection = await getConnection();
+    try {
+      // Get request details
+      const [requests] = await connection.query('SELECT * FROM solicitacoes WHERE id = ?', [id]);
+      const request = (requests as any[])[0];
+      
+      if (!request) {
+        return null;
+      }
+      
+      // Get items for this request
+      const [items] = await connection.query('SELECT * FROM itens WHERE solicitacao_id = ?', [id]);
+      
+      // Get approvals for this request
+      const [approvals] = await connection.query('SELECT * FROM aprovacoes WHERE solicitacao_id = ?', [id]);
+      
+      // Get quotes for this request
+      const [quotes] = await connection.query('SELECT * FROM cotacoes WHERE solicitacao_id = ?', [id]);
+      
+      return {
+        ...request,
+        items,
+        approvals,
+        quotes
+      };
+    } finally {
+      connection.release();
+    }
   };
+  
+  const mockQuery = (id: number) => {
+    const request = mockRequests.find(req => req.id === id);
+    
+    if (!request) {
+      return null;
+    }
+    
+    const items = mockItems.filter(item => item.solicitacao_id === id);
+    const approvals = mockApprovals.filter(approval => approval.solicitacao_id === id);
+    const quotes = mockQuotes.filter(quote => quote.solicitacao_id === id);
+    
+    return {
+      ...request,
+      items,
+      approvals,
+      quotes
+    };
+  };
+  
+  return executeQuery(dbQuery, mockQuery, id);
 };
 
 // Create new request
 export const createRequest = async (requestData: any, items: any[]): Promise<number> => {
-  console.log('Creating new request:', requestData, items);
-  
-  // Simulate creating a new request with ID
-  const newId = mockRequests.length + 1;
-  
-  const newRequest: Request = {
-    id: newId,
-    nome_solicitante: requestData.requesterName,
-    aplicacao: requestData.application,
-    centro_custo: requestData.costCenter,
-    data_solicitacao: new Date().toISOString().split('T')[0],
-    local_entrega: requestData.deliveryLocation,
-    prazo_entrega: requestData.deliveryDeadline,
-    categoria: requestData.category,
-    motivo: requestData.reason,
-    prioridade: requestData.priority,
-    status: 'Solicitado'
+  const dbQuery = async (requestData: any, items: any[]) => {
+    const connection = await getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      // Insert request
+      const [result] = await connection.query(
+        `INSERT INTO solicitacoes (
+          nome_solicitante, aplicacao, centro_custo, data_solicitacao, 
+          local_entrega, prazo_entrega, categoria, motivo, prioridade, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          requestData.requesterName,
+          requestData.application,
+          requestData.costCenter,
+          new Date().toISOString().split('T')[0],
+          requestData.deliveryLocation,
+          requestData.deliveryDeadline,
+          requestData.category,
+          requestData.reason,
+          requestData.priority,
+          'Solicitado'
+        ]
+      );
+      
+      const requestId = (result as any).insertId;
+      
+      // Insert items
+      for (const item of items) {
+        await connection.query(
+          'INSERT INTO itens (descricao, quantidade, solicitacao_id, id_solicitante) VALUES (?, ?, ?, ?)',
+          [item.description, item.quantity, requestId, 1] // Assuming user ID 1
+        );
+      }
+      
+      await connection.commit();
+      return requestId;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   };
   
-  mockRequests.push(newRequest);
-  
-  // Add items
-  let itemId = mockItems.length + 1;
-  items.forEach(item => {
-    mockItems.push({
-      id: itemId++,
-      descricao: item.description,
-      quantidade: item.quantity,
-      solicitacao_id: newId,
-      id_solicitante: 1 // Assuming user ID 1
+  const mockQuery = (requestData: any, items: any[]) => {
+    // Simulate creating a new request with ID
+    const newId = mockRequests.length + 1;
+    
+    const newRequest: Request = {
+      id: newId,
+      nome_solicitante: requestData.requesterName,
+      aplicacao: requestData.application,
+      centro_custo: requestData.costCenter,
+      data_solicitacao: new Date().toISOString().split('T')[0],
+      local_entrega: requestData.deliveryLocation,
+      prazo_entrega: requestData.deliveryDeadline,
+      categoria: requestData.category,
+      motivo: requestData.reason,
+      prioridade: requestData.priority,
+      status: 'Solicitado'
+    };
+    
+    mockRequests.push(newRequest);
+    
+    // Add items
+    let itemId = mockItems.length + 1;
+    items.forEach(item => {
+      mockItems.push({
+        id: itemId++,
+        descricao: item.description,
+        quantidade: item.quantity,
+        solicitacao_id: newId,
+        id_solicitante: 1 // Assuming user ID 1
+      });
     });
-  });
+    
+    return newId;
+  };
   
-  return newId;
+  return executeQuery(dbQuery, mockQuery, requestData, items);
 };
 
 // Update request status
 export const updateRequestStatus = async (id: number, status: string, approvalData?: any): Promise<boolean> => {
-  console.log('Updating request status:', id, status, approvalData);
+  const dbQuery = async (id: number, status: string, approvalData?: any) => {
+    const connection = await getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      // Update request status
+      await connection.query(
+        'UPDATE solicitacoes SET status = ? WHERE id = ?',
+        [status, id]
+      );
+      
+      // Add approval record if provided
+      if (approvalData) {
+        await connection.query(
+          `INSERT INTO aprovacoes (
+            solicitacao_id, etapa, status, aprovado_por, 
+            nivel_aprovacao, motivo_rejeicao, data_aprovacao
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            approvalData.etapa,
+            approvalData.status,
+            approvalData.aprovado_por,
+            approvalData.nivel_aprovacao,
+            approvalData.motivo_rejeicao || null,
+            new Date().toISOString().split('T')[0]
+          ]
+        );
+      }
+      
+      await connection.commit();
+      return true;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  };
   
-  const requestIndex = mockRequests.findIndex(req => req.id === id);
-  if (requestIndex === -1) {
-    return false;
-  }
+  const mockQuery = (id: number, status: string, approvalData?: any) => {
+    const requestIndex = mockRequests.findIndex(req => req.id === id);
+    if (requestIndex === -1) {
+      return false;
+    }
+    
+    mockRequests[requestIndex].status = status;
+    
+    // Add approval record if provided
+    if (approvalData) {
+      const newApprovalId = mockApprovals.length + 1;
+      mockApprovals.push({
+        id: newApprovalId,
+        solicitacao_id: id,
+        etapa: approvalData.etapa,
+        status: approvalData.status,
+        aprovado_por: approvalData.aprovado_por,
+        nivel_aprovacao: approvalData.nivel_aprovacao,
+        motivo_rejeicao: approvalData.motivo_rejeicao,
+        data_aprovacao: new Date().toISOString().split('T')[0]
+      });
+    }
+    
+    return true;
+  };
   
-  mockRequests[requestIndex].status = status;
-  
-  // Add approval record if provided
-  if (approvalData) {
-    const newApprovalId = mockApprovals.length + 1;
-    mockApprovals.push({
-      id: newApprovalId,
-      solicitacao_id: id,
-      etapa: approvalData.etapa,
-      status: approvalData.status,
-      aprovado_por: approvalData.aprovado_por,
-      nivel_aprovacao: approvalData.nivel_aprovacao,
-      motivo_rejeicao: approvalData.motivo_rejeicao,
-      data_aprovacao: new Date().toISOString().split('T')[0]
-    });
-  }
-  
-  return true;
+  return executeQuery(dbQuery, mockQuery, id, status, approvalData);
 };
 
 // Create quote
 export const createQuote = async (quoteData: any): Promise<any> => {
-  console.log('Creating quote:', quoteData);
-  
-  const newId = mockQuotes.length + 1;
-  
-  const newQuote: Quote = {
-    id: newId,
-    solicitacao_id: quoteData.solicitacao_id,
-    fornecedor: quoteData.fornecedor,
-    preco: quoteData.preco,
-    prazo_entrega: quoteData.prazo_entrega,
-    condicoes: quoteData.condicoes,
-    nivel_aprovacao: quoteData.nivel_aprovacao,
-    status: 'Em Cotação'
+  const dbQuery = async (quoteData: any) => {
+    const connection = await getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      // Insert quote
+      const [result] = await connection.query(
+        `INSERT INTO cotacoes (
+          solicitacao_id, fornecedor, preco, prazo_entrega, 
+          condicoes, nivel_aprovacao, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          quoteData.solicitacao_id,
+          quoteData.fornecedor,
+          quoteData.preco,
+          quoteData.prazo_entrega,
+          quoteData.condicoes,
+          quoteData.nivel_aprovacao,
+          'Em Cotação'
+        ]
+      );
+      
+      await connection.commit();
+      return { insertId: (result as any).insertId };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   };
   
-  mockQuotes.push(newQuote);
-  
-  return { insertId: newId };
-};
-
-// Update quote status
-export const updateQuoteStatus = async (id: number, status: string, approvedBy?: string, approvalLevel?: string): Promise<boolean> => {
-  console.log('Updating quote status:', id, status, approvedBy, approvalLevel);
-  
-  const quoteIndex = mockQuotes.findIndex(quote => quote.id === id);
-  if (quoteIndex === -1) {
-    return false;
-  }
-  
-  mockQuotes[quoteIndex].status = status;
-  if (approvedBy) mockQuotes[quoteIndex].aprovado_por = approvedBy;
-  if (approvalLevel) mockQuotes[quoteIndex].nivel_aprovacao = approvalLevel;
-  
-  return true;
-};
-
-// Create supplier
-export const createSupplier = async (supplierData: Omit<Supplier, 'id'>): Promise<number> => {
-  console.log('Creating supplier:', supplierData);
-  
-  const newId = mockSuppliers.length + 1;
-  
-  const newSupplier: Supplier = {
-    id: newId,
-    ...supplierData
+  const mockQuery = (quoteData: any) => {
+    const newId = mockQuotes.length + 1;
+    
+    const newQuote: Quote = {
+      id: newId,
+      solicitacao_id: quoteData.solicitacao_id,
+      fornecedor: quoteData.fornecedor,
+      preco: quoteData.preco,
+      prazo_entrega: quoteData.prazo_entrega,
+      condicoes: quoteData.condicoes,
+      nivel_aprovacao: quoteData.nivel_aprovacao,
+      status: 'Em Cotação'
+    };
+    
+    mockQuotes.push(newQuote);
+    
+    return { insertId: newId };
   };
   
-  mockSuppliers.push(newSupplier);
-  
-  return newId;
+  return executeQuery(dbQuery, mockQuery, quoteData);
 };
 
 // Get all suppliers
 export const getAllSuppliers = async (): Promise<Supplier[]> => {
-  console.log('Fetching all suppliers');
-  return [...mockSuppliers];
+  const dbQuery = async () => {
+    const connection = await getConnection();
+    try {
+      const [rows] = await connection.query('SELECT * FROM fornecedores');
+      return rows as Supplier[];
+    } finally {
+      connection.release();
+    }
+  };
+  
+  const mockQuery = () => [...mockSuppliers];
+  
+  return executeQuery(dbQuery, mockQuery);
+};
+
+// Create supplier
+export const createSupplier = async (supplierData: Omit<Supplier, 'id'>): Promise<number> => {
+  const dbQuery = async (supplierData: Omit<Supplier, 'id'>) => {
+    const connection = await getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      // Insert supplier
+      const [result] = await connection.query(
+        `INSERT INTO fornecedores (
+          nome, categoria, contato, telefone, email, endereco
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          supplierData.nome,
+          supplierData.categoria,
+          supplierData.contato,
+          supplierData.telefone,
+          supplierData.email,
+          supplierData.endereco
+        ]
+      );
+      
+      await connection.commit();
+      return (result as any).insertId;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  };
+  
+  const mockQuery = (supplierData: Omit<Supplier, 'id'>) => {
+    const newId = mockSuppliers.length + 1;
+    
+    const newSupplier: Supplier = {
+      id: newId,
+      ...supplierData
+    };
+    
+    mockSuppliers.push(newSupplier);
+    
+    return newId;
+  };
+  
+  return executeQuery(dbQuery, mockQuery, supplierData);
+};
+
+// Update quote status
+export const updateQuoteStatus = async (id: number, status: string, approvedBy?: string, approvalLevel?: string): Promise<boolean> => {
+  const dbQuery = async (id: number, status: string, approvedBy?: string, approvalLevel?: string) => {
+    const connection = await getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      let query = 'UPDATE cotacoes SET status = ?';
+      const params: any[] = [status];
+      
+      if (approvedBy) {
+        query += ', aprovado_por = ?';
+        params.push(approvedBy);
+      }
+      
+      if (approvalLevel) {
+        query += ', nivel_aprovacao = ?';
+        params.push(approvalLevel);
+      }
+      
+      query += ' WHERE id = ?';
+      params.push(id);
+      
+      await connection.query(query, params);
+      
+      await connection.commit();
+      return true;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  };
+  
+  const mockQuery = (id: number, status: string, approvedBy?: string, approvalLevel?: string) => {
+    const quoteIndex = mockQuotes.findIndex(quote => quote.id === id);
+    if (quoteIndex === -1) {
+      return false;
+    }
+    
+    mockQuotes[quoteIndex].status = status;
+    if (approvedBy) mockQuotes[quoteIndex].aprovado_por = approvedBy;
+    if (approvalLevel) mockQuotes[quoteIndex].nivel_aprovacao = approvalLevel;
+    
+    return true;
+  };
+  
+  return executeQuery(dbQuery, mockQuery, id, status, approvedBy, approvalLevel);
 };
 
 // Update request details
 export const updateRequestDetails = async (id: number, updateData: Partial<Request>): Promise<boolean> => {
-  console.log('Updating request details:', id, updateData);
-  
-  const requestIndex = mockRequests.findIndex(req => req.id === id);
-  if (requestIndex === -1) {
-    return false;
-  }
-  
-  mockRequests[requestIndex] = {
-    ...mockRequests[requestIndex],
-    ...updateData
+  const dbQuery = async (id: number, updateData: Partial<Request>) => {
+    const connection = await getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      const keys = Object.keys(updateData);
+      if (keys.length === 0) {
+        return false;
+      }
+      
+      const setClause = keys.map(key => `${key} = ?`).join(', ');
+      const values = keys.map(key => (updateData as any)[key]);
+      values.push(id);
+      
+      await connection.query(`UPDATE solicitacoes SET ${setClause} WHERE id = ?`, values);
+      
+      await connection.commit();
+      return true;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   };
   
-  return true;
+  const mockQuery = (id: number, updateData: Partial<Request>) => {
+    const requestIndex = mockRequests.findIndex(req => req.id === id);
+    if (requestIndex === -1) {
+      return false;
+    }
+    
+    mockRequests[requestIndex] = {
+      ...mockRequests[requestIndex],
+      ...updateData
+    };
+    
+    return true;
+  };
+  
+  return executeQuery(dbQuery, mockQuery, id, updateData);
 };

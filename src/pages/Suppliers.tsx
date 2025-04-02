@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,8 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getAllSuppliers, createSupplier } from '@/utils/database';
 
 interface Supplier {
   id: number;
@@ -53,16 +56,31 @@ interface Supplier {
 
 const Suppliers = () => {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [openSupplierDialog, setOpenSupplierDialog] = useState(false);
   const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([
-    { id: 1, nome: 'Fornecedor A Ltda', cnpj: '12.345.678/0001-90', categoria: 'Equipamentos', contato: 'João Silva', telefone: '(11) 98765-4321', email: 'contato@fornecedora.com', endereco: 'Rua A, 123 - São Paulo/SP', cidade: 'São Paulo', estado: 'SP', cep: '01234-567', observacoes: 'Fornecedor confiável de equipamentos.' },
-    { id: 2, nome: 'Fornecedor B S.A.', cnpj: '23.456.789/0001-01', categoria: 'Materiais', contato: 'Maria Oliveira', telefone: '(11) 91234-5678', email: 'vendas@fornecedorb.com', endereco: 'Av. B, 456 - Rio de Janeiro/RJ', cidade: 'Rio de Janeiro', estado: 'RJ', cep: '20000-123', observacoes: 'Ótimos preços para materiais de construção.' },
-    { id: 3, nome: 'Fornecedor C ME', cnpj: '34.567.890/0001-12', categoria: 'Serviços', contato: 'Carlos Santos', telefone: '(11) 99876-5432', email: 'carlos@fornecedorc.com', endereco: 'Praça C, 789 - Belo Horizonte/MG', cidade: 'Belo Horizonte', estado: 'MG', cep: '30000-789', observacoes: 'Especializado em serviços elétricos.' },
-    { id: 4, nome: 'Fornecedor D EPP', cnpj: '45.678.901/0001-23', categoria: 'Manutenção', contato: 'Ana Souza', telefone: '(11) 92345-6789', email: 'contato@fornecedord.com', endereco: 'Alameda D, 1011 - Brasília/DF', cidade: 'Brasília', estado: 'DF', cep: '70000-101', observacoes: 'Manutenção preventiva e corretiva.' },
-  ]);
+  
+  // Fetch suppliers data
+  const { data: suppliers = [], isLoading } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: getAllSuppliers
+  });
+  
+  const createSupplierMutation = useMutation({
+    mutationFn: createSupplier,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      toast.success("Fornecedor cadastrado com sucesso");
+      setOpenSupplierDialog(false);
+      form.reset();
+    },
+    onError: (error) => {
+      console.error('Error creating supplier:', error);
+      toast.error("Erro ao cadastrar fornecedor");
+    }
+  });
   
   const handleNewSupplier = () => {
     setOpenSupplierDialog(true);
@@ -73,11 +91,11 @@ const Suppliers = () => {
     setOpenDetailsDialog(true);
   };
 
-  const filteredSuppliers = suppliers.filter(supplier => 
+  const filteredSuppliers = suppliers.filter((supplier: Supplier) => 
     supplier.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     supplier.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
     supplier.contato.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.cnpj.toLowerCase().includes(searchTerm.toLowerCase())
+    (supplier.cnpj && supplier.cnpj.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const form = useForm({
@@ -97,15 +115,7 @@ const Suppliers = () => {
   });
 
   const onSubmit = (data: any) => {
-    const newSupplier = {
-      id: suppliers.length + 1,
-      ...data
-    };
-    
-    setSuppliers([...suppliers, newSupplier]);
-    toast.success("Fornecedor cadastrado com sucesso");
-    setOpenSupplierDialog(false);
-    form.reset();
+    createSupplierMutation.mutate(data);
   };
   
   return (
@@ -143,56 +153,66 @@ const Suppliers = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredSuppliers.map((supplier) => (
-                    <div 
-                      key={supplier.id}
-                      className="border rounded-lg p-4 hover:border-primary/30 transition-all cursor-pointer"
-                      onClick={() => handleSupplierClick(supplier)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-medium text-lg">{supplier.nome}</h3>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-primary p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSupplierClick(supplier);
-                          }}
-                        >
-                          <ArrowRight className="h-4 w-4" /> 
-                          <span className="ml-1">Detalhes</span>
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-1 mb-3">
-                        <Building className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">CNPJ: {supplier.cnpj}</span>
-                      </div>
-
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Categoria: {supplier.categoria}
-                      </p>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>{supplier.contato}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
-                          <span>{supplier.telefone}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span>{supplier.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          <span>{supplier.endereco}</span>
-                        </div>
-                      </div>
+                  {isLoading ? (
+                    <div className="col-span-2 text-center py-8">
+                      <p className="text-muted-foreground">Carregando fornecedores...</p>
                     </div>
-                  ))}
+                  ) : filteredSuppliers.length === 0 ? (
+                    <div className="col-span-2 text-center py-8">
+                      <p className="text-muted-foreground">Nenhum fornecedor encontrado</p>
+                    </div>
+                  ) : (
+                    filteredSuppliers.map((supplier: Supplier) => (
+                      <div 
+                        key={supplier.id}
+                        className="border rounded-lg p-4 hover:border-primary/30 transition-all cursor-pointer"
+                        onClick={() => handleSupplierClick(supplier)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-medium text-lg">{supplier.nome}</h3>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-primary p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSupplierClick(supplier);
+                            }}
+                          >
+                            <ArrowRight className="h-4 w-4" /> 
+                            <span className="ml-1">Detalhes</span>
+                          </Button>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-1 mb-3">
+                          <Building className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">CNPJ: {supplier.cnpj}</span>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground mb-3">
+                          Categoria: {supplier.categoria}
+                        </p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span>{supplier.contato}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-muted-foreground" />
+                            <span>{supplier.telefone}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span>{supplier.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span>{supplier.endereco}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -201,7 +221,7 @@ const Suppliers = () => {
       </main>
 
       <Dialog open={openSupplierDialog} onOpenChange={setOpenSupplierDialog}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Novo Fornecedor</DialogTitle>
             <DialogDescription>
@@ -211,7 +231,7 @@ const Suppliers = () => {
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField
                   control={form.control}
                   name="nome"
@@ -310,7 +330,7 @@ const Suppliers = () => {
                   control={form.control}
                   name="endereco"
                   render={({ field }) => (
-                    <FormItem className="sm:col-span-2">
+                    <FormItem className="lg:col-span-2">
                       <FormLabel>Endereço</FormLabel>
                       <FormControl>
                         <Input placeholder="Endereço completo" {...field} required />
@@ -366,7 +386,7 @@ const Suppliers = () => {
                   control={form.control}
                   name="observacoes"
                   render={({ field }) => (
-                    <FormItem className="sm:col-span-3">
+                    <FormItem className="lg:col-span-4">
                       <FormLabel>Observações</FormLabel>
                       <FormControl>
                         <Input placeholder="Observações adicionais" {...field} />
