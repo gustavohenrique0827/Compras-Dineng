@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +22,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -50,7 +50,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import QuoteComparison from '@/components/QuoteComparison';
-import { fetchQuoteRequests, fetchSuppliers, createNewQuote, QuoteItem, Supplier, QuoteData } from '@/api/quotes';
+import { fetchQuoteRequests, fetchSuppliers, createNewQuote, QuoteItem, Supplier as ApiSupplier, QuoteData } from '@/api/quotes';
 
 // Interface para cotações
 interface Quote {
@@ -63,15 +63,9 @@ interface Quote {
   solicitacao_id?: number;
 }
 
-// Interface para detalhes da cotação
-interface QuoteDetail {
-  id: number;
-  description: string;
-  quantity: number;
-  priceSupplier1: number;
-  priceSupplier2: number;
-  priceSupplier3: number;
-  selectedSupplier: number | null;
+// Extend our internal supplier interface to match the API interface
+interface SupplierWithItems extends ApiSupplier {
+  nome?: string; // For compatibility with database suppliers
 }
 
 const Purchases = () => {
@@ -86,18 +80,26 @@ const Purchases = () => {
   // Estado para armazenar as cotações carregadas do banco de dados
   const [quotes, setQuotes] = useState<Quote[]>([]);
   // Estado para armazenar os fornecedores do banco de dados
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierWithItems[]>([]);
   // Estado para armazenar solicitações disponíveis para cotação
   const [quoteRequests, setQuoteRequests] = useState<any[]>([]);
   // Estado para o fornecedor selecionado na dialog de nova cotação
   const [selectedSupplier, setSelectedSupplier] = useState<number | null>(null);
   // Estado para fornecedores adicionados à cotação
-  const [addedSuppliers, setAddedSuppliers] = useState<Supplier[]>([]);
+  const [addedSuppliers, setAddedSuppliers] = useState<SupplierWithItems[]>([]);
   // Estado para os itens da cotação
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState(1);
   const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
+
+  // Setup form
+  const quoteForm = useForm({
+    defaultValues: {
+      requestId: "",
+      supplier: ""
+    }
+  });
 
   // Carregando fornecedores e solicitações para cotação
   useEffect(() => {
@@ -139,8 +141,12 @@ const Purchases = () => {
     
     const supplier = suppliers.find(s => s.id === selectedSupplier);
     if (supplier) {
-      setAddedSuppliers([...addedSuppliers, supplier]);
-      toast.success(`Fornecedor ${supplier.nome} adicionado`);
+      setAddedSuppliers([...addedSuppliers, {
+        id: supplier.id,
+        name: supplier.nome || supplier.name || "",
+        items: []
+      }]);
+      toast.success(`Fornecedor ${supplier.nome || supplier.name} adicionado`);
       setSelectedSupplier(null);
     }
   };
@@ -172,7 +178,7 @@ const Purchases = () => {
     // Criar um item para cada fornecedor
     const newItems = addedSuppliers.map(supplier => ({
       id: Date.now() + Math.random(),  // ID temporário único
-      description: newItemName,
+      itemName: newItemName,
       quantity: newItemQuantity,
       price: 0,
       supplierId: supplier.id
@@ -233,13 +239,6 @@ const Purchases = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const form = useForm({
-    defaultValues: {
-      requestId: "",
-      supplier: ""
-    }
-  });
-
   // Função para salvar a cotação
   const handleSaveQuote = async () => {
     if (!selectedRequestId) {
@@ -260,24 +259,15 @@ const Purchases = () => {
     // Verificar se todos os itens têm preço válido
     const invalidItem = items.find(item => item.price <= 0);
     if (invalidItem) {
-      toast.error(`Informe um preço válido para o item ${invalidItem.description}`);
+      toast.error(`Informe um preço válido para o item ${invalidItem.itemName}`);
       return;
     }
 
     try {
-      // Preparar dados para salvar - convert items to match the expected QuoteItem interface
-      const quoteItems: QuoteItem[] = items.map(item => ({
-        id: item.id,
-        itemName: item.description,
-        quantity: item.quantity,
-        price: item.price,
-        supplierId: item.supplierId
-      }));
-      
-      // Create the quote data object
+      // Preparar dados para salvar
       const quoteData: QuoteData = {
         requestId: selectedRequestId,
-        items: quoteItems,
+        items: items,
         status: "Em Cotação",
         totalValue: items.reduce((total, item) => total + (item.price * item.quantity), 0)
       };
@@ -289,7 +279,7 @@ const Purchases = () => {
       const newQuote = {
         id: quotes.length + 1,
         ordem: `OC-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`,
-        fornecedor: addedSuppliers.map(s => s.nome).join(', '),
+        fornecedor: addedSuppliers.map(s => s.name).join(', '),
         valor: `R$ ${quoteData.totalValue.toFixed(2)}`,
         status: 'Em andamento',
         data: new Date().toLocaleDateString('pt-BR'),
@@ -302,11 +292,6 @@ const Purchases = () => {
       console.error("Erro ao salvar cotação:", error);
       toast.error("Erro ao salvar cotação");
     }
-  };
-
-  // Função para lidar com a seleção de fornecedor para um item
-  const handleSupplierSelection = (itemId: number, supplierId: number) => {
-    // Implementar lógica de seleção
   };
 
   // Mock function for handling the completion of quote comparison
@@ -445,7 +430,7 @@ const Purchases = () => {
               </Select>
             </div>
             
-            {/* Seleção de Fornecedores - Properly wrapped in a Form context */}
+            {/* Seleção de Fornecedores */}
             <Form {...quoteForm}>
               <form className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -463,7 +448,7 @@ const Purchases = () => {
                     <SelectContent>
                       {suppliers.map(supplier => (
                         <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                          {supplier.nome}
+                          {supplier.nome || supplier.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -486,7 +471,7 @@ const Purchases = () => {
               <div className="flex flex-wrap gap-2 mt-2">
                 {addedSuppliers.map(supplier => (
                   <div key={supplier.id} className="bg-muted px-3 py-1 rounded-md flex items-center gap-2">
-                    <span>{supplier.nome}</span>
+                    <span>{supplier.name}</span>
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -530,7 +515,7 @@ const Purchases = () => {
                 {addedSuppliers.map(supplier => (
                   <Card key={supplier.id}>
                     <CardHeader>
-                      <CardTitle className="text-base">{supplier.nome}</CardTitle>
+                      <CardTitle className="text-base">{supplier.name}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <Table className="border">
@@ -548,7 +533,7 @@ const Purchases = () => {
                             .filter(item => item.supplierId === supplier.id)
                             .map((item) => (
                               <TableRow key={item.id}>
-                                <TableCell>{item.description}</TableCell>
+                                <TableCell>{item.itemName}</TableCell>
                                 <TableCell className="text-center">
                                   <Input 
                                     type="number" 
