@@ -26,11 +26,16 @@ interface CostCenterComboboxProps {
 
 // Função para buscar centros de custo da API
 const fetchCostCenters = async (): Promise<CentroCusto[]> => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/cost-centers`);
-  if (!response.ok) {
-    throw new Error('Falha ao carregar centros de custo');
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/cost-centers`);
+    if (!response.ok) {
+      throw new Error('Falha ao carregar centros de custo');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Erro ao buscar centros de custo:', error);
+    return []; // Retorna array vazio em caso de erro
   }
-  return response.json();
 };
 
 const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange }) => {
@@ -82,7 +87,7 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange
               </Button>
             </CommandEmpty>
             <CommandGroup>
-              {costCenters.map((center) => (
+              {costCenters && costCenters.map((center) => (
                 <CommandItem
                   key={center.id}
                   value={center.codigo}
