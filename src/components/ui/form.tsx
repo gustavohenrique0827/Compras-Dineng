@@ -40,6 +40,20 @@ const FormField = <
   )
 }
 
+type FormFieldState = {
+  invalid: boolean
+  isDirty: boolean
+  isTouched: boolean
+  isValidating: boolean
+  error?: {
+    message?: string
+  }
+}
+
+type FormItemContextState = {
+  id: string
+}
+
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext)
   const itemContext = React.useContext(FormItemContext)
@@ -50,29 +64,17 @@ const useFormField = () => {
     throw new Error("useFormField should be used within <FormField>")
   }
 
-  // Check if the form context exists - if not, return a minimal context
-  if (!formContext) {
-    return {
-      id: itemContext?.id,
-      name: fieldContext.name,
-      formItemId: itemContext?.id ? `${itemContext.id}-form-item` : undefined,
-      formDescriptionId: itemContext?.id ? `${itemContext.id}-form-item-description` : undefined,
-      formMessageId: itemContext?.id ? `${itemContext.id}-form-item-message` : undefined,
-    }
-  }
-
-  // If the form context exists, use it normally
-  const { getFieldState, formState } = formContext
-  const fieldState = getFieldState(fieldContext.name, formState)
-
-  const { id } = itemContext || {}
+  // Create a minimal field state if no form context
+  const fieldState: FormFieldState = formContext ? 
+    formContext.getFieldState(fieldContext.name, formContext.formState) : 
+    { invalid: false, isDirty: false, isTouched: false, isValidating: false };
 
   return {
-    id,
+    id: itemContext?.id,
     name: fieldContext.name,
-    formItemId: id ? `${id}-form-item` : undefined,
-    formDescriptionId: id ? `${id}-form-item-description` : undefined,
-    formMessageId: id ? `${id}-form-item-message` : undefined,
+    formItemId: itemContext?.id ? `${itemContext.id}-form-item` : undefined,
+    formDescriptionId: itemContext?.id ? `${itemContext.id}-form-item-description` : undefined,
+    formMessageId: itemContext?.id ? `${itemContext.id}-form-item-message` : undefined,
     ...fieldState,
   }
 }
