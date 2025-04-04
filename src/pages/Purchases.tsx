@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,7 +50,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import QuoteComparison from '@/components/QuoteComparison';
-import { fetchQuoteRequests, fetchSuppliers, createNewQuote } from '@/api/quotes';
+import { fetchQuoteRequests, fetchSuppliers, createNewQuote, QuoteItem, Supplier, QuoteData } from '@/api/quotes';
 
 // Interface para cotações
 interface Quote {
@@ -73,22 +72,6 @@ interface QuoteDetail {
   priceSupplier2: number;
   priceSupplier3: number;
   selectedSupplier: number | null;
-}
-
-// Interface para fornecedor
-interface Supplier {
-  id: number;
-  nome: string;
-  cnpj?: string;
-}
-
-// Interface para item da cotação
-interface QuoteItem {
-  id: number;
-  description: string;
-  quantity: number;
-  price: number;
-  supplierId: number;
 }
 
 const Purchases = () => {
@@ -282,10 +265,19 @@ const Purchases = () => {
     }
 
     try {
-      // Preparar dados para salvar
-      const quoteData = {
+      // Preparar dados para salvar - convert items to match the expected QuoteItem interface
+      const quoteItems: QuoteItem[] = items.map(item => ({
+        id: item.id,
+        itemName: item.description,
+        quantity: item.quantity,
+        price: item.price,
+        supplierId: item.supplierId
+      }));
+      
+      // Create the quote data object
+      const quoteData: QuoteData = {
         requestId: selectedRequestId,
-        items: items,
+        items: quoteItems,
         status: "Em Cotação",
         totalValue: items.reduce((total, item) => total + (item.price * item.quantity), 0)
       };
@@ -293,8 +285,7 @@ const Purchases = () => {
       await createNewQuote(quoteData);
       setOpenQuoteDialog(false);
       
-      // Atualizar a lista de cotações (normalmente buscaríamos do banco de dados novamente)
-      // Por enquanto, vamos adicionar uma nova cotação simulada à lista
+      // Atualizar a lista de cotações
       const newQuote = {
         id: quotes.length + 1,
         ordem: `OC-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`,
@@ -306,9 +297,6 @@ const Purchases = () => {
       };
       
       setQuotes([...quotes, newQuote]);
-      
-      // Redirecionar para a página de cotações
-      // Como já estamos na página de cotações, apenas atualizamos a página
       toast.success("Cotação salva com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar cotação:", error);
@@ -457,58 +445,60 @@ const Purchases = () => {
               </Select>
             </div>
             
-            {/* Seleção de Fornecedores */}
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Fornecedores</h3>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Select 
-                  value={selectedSupplier?.toString() || ""} 
-                  onValueChange={(value) => setSelectedSupplier(Number(value))}
-                >
-                  <SelectTrigger className="min-w-[250px]">
-                    <SelectValue placeholder="Selecione o fornecedor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map(supplier => (
-                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                        {supplier.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  className="bg-green-500 hover:bg-green-600 text-white"
-                  onClick={addSupplierToQuote}
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Adicionar
-                </Button>
-              </div>
-              
-              {/* Lista de fornecedores adicionados */}
-              {addedSuppliers.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {addedSuppliers.map(supplier => (
-                    <div key={supplier.id} className="bg-muted px-3 py-1 rounded-md flex items-center gap-2">
-                      <span>{supplier.nome}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-5 w-5 p-0 rounded-full"
-                        onClick={() => removeSupplierFromQuote(supplier.id)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+            {/* Seleção de Fornecedores - Properly wrapped in a Form context */}
+            <Form {...quoteForm}>
+              <form className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Fornecedores</h3>
                 </div>
-              )}
-            </div>
+                
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={selectedSupplier?.toString() || ""} 
+                    onValueChange={(value) => setSelectedSupplier(Number(value))}
+                  >
+                    <SelectTrigger className="min-w-[250px]">
+                      <SelectValue placeholder="Selecione o fornecedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map(supplier => (
+                        <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                          {supplier.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="bg-green-500 hover:bg-green-600 text-white"
+                    onClick={addSupplierToQuote}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar
+                  </Button>
+                </div>
+              </form>
+            </Form>
+            
+            {/* Lista de fornecedores adicionados */}
+            {addedSuppliers.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {addedSuppliers.map(supplier => (
+                  <div key={supplier.id} className="bg-muted px-3 py-1 rounded-md flex items-center gap-2">
+                    <span>{supplier.nome}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-5 w-5 p-0 rounded-full"
+                      onClick={() => removeSupplierFromQuote(supplier.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
             
             {/* Adição de Itens */}
             {addedSuppliers.length > 0 && (
