@@ -5,6 +5,7 @@ const { pool, testConnection } = require('./db');
 const requestsRoutes = require('./routes/requests');
 const quotesRoutes = require('./routes/quotes');
 const suppliersRoutes = require('./routes/suppliers');
+const usersRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,6 +28,7 @@ app.get('/api/test-connection', async (req, res) => {
 app.use('/api/requests', requestsRoutes);
 app.use('/api/quotes', quotesRoutes);
 app.use('/api/suppliers', suppliersRoutes);
+app.use('/api/users', usersRoutes);
 
 // Rota padrão
 app.get('/', (req, res) => {
