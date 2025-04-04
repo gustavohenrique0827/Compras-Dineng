@@ -10,7 +10,26 @@ export interface User {
   nivel_acesso: 'admin' | 'gerente' | 'supervisor' | 'comprador' | 'solicitante';
   ativo: boolean;
   departamento?: string;
-  telefone?: string;
+}
+
+export interface NivelAutorizacao {
+  id: number;
+  nome: string;
+  cor: string;
+  descricao?: string;
+  compras_impeditivas: number;
+  compras_consumo: number;
+  compras_estoque: number;
+  compras_locais: number;
+  compras_investimentos: number;
+  alojamentos: number;
+}
+
+export interface CentroCusto {
+  id: number;
+  codigo: string;
+  descricao: string;
+  ativo: boolean;
 }
 
 // Verificar se o usuário está autenticado
@@ -58,3 +77,11 @@ export const accessLevels = [
   { value: 'comprador', label: 'Comprador', description: 'Criar cotações e negociar com fornecedores' },
   { value: 'solicitante', label: 'Solicitante', description: 'Criar solicitações de compra' }
 ];
+
+// Cores dos níveis de autorização
+export const authorizationColors = {
+  'Amarelo': 'bg-yellow-500',
+  'Azul': 'bg-blue-500',
+  'Marrom': 'bg-amber-800',
+  'Verde': 'bg-green-500'
+};

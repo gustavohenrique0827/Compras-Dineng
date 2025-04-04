@@ -7,7 +7,7 @@ const { pool } = require('../db');
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, telefone
+      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento
       FROM usuarios
       ORDER BY nome
     `);
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, telefone
+      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento
       FROM usuarios
       WHERE id = ?
     `, [req.params.id]);
@@ -41,7 +41,7 @@ router.get('/:id', async (req, res) => {
 
 // Criar novo usuário
 router.post('/', async (req, res) => {
-  const { nome, email, cargo, nivel_acesso, ativo, departamento, telefone, senha } = req.body;
+  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha } = req.body;
   
   if (!nome || !email || !cargo || !nivel_acesso || !senha) {
     return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
@@ -57,9 +57,9 @@ router.post('/', async (req, res) => {
     
     // Inserir novo usuário
     const [result] = await pool.query(`
-      INSERT INTO usuarios (nome, email, cargo, nivel_acesso, ativo, departamento, telefone, senha)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, telefone, senha]);
+      INSERT INTO usuarios (nome, email, cargo, nivel_acesso, ativo, departamento, senha)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, senha]);
     
     res.status(201).json({ success: true, id: result.insertId });
   } catch (error) {
@@ -70,7 +70,7 @@ router.post('/', async (req, res) => {
 
 // Atualizar usuário
 router.put('/:id', async (req, res) => {
-  const { nome, email, cargo, nivel_acesso, ativo, departamento, telefone } = req.body;
+  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha } = req.body;
   const id = req.params.id;
   
   if (!nome || !email || !cargo || !nivel_acesso) {
@@ -85,12 +85,26 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
     }
     
-    // Atualizar usuário
-    await pool.query(`
+    let query = `
       UPDATE usuarios 
-      SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?, telefone = ?
+      SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?
       WHERE id = ?
-    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, telefone, id]);
+    `;
+    
+    let params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, id];
+    
+    // Se senha foi fornecida, atualize-a também
+    if (senha) {
+      query = `
+        UPDATE usuarios 
+        SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?, senha = ?
+        WHERE id = ?
+      `;
+      params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, senha, id];
+    }
+    
+    // Atualizar usuário
+    await pool.query(query, params);
     
     res.json({ success: true, message: 'Usuário atualizado com sucesso' });
   } catch (error) {
@@ -167,7 +181,7 @@ router.post('/login', async (req, res) => {
   
   try {
     const [users] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, telefone
+      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento
       FROM usuarios 
       WHERE email = ? AND senha = ? AND ativo = 1
     `, [email, senha]);
@@ -186,13 +200,23 @@ router.post('/login', async (req, res) => {
         email: user.email,
         cargo: user.cargo,
         nivel_acesso: user.nivel_acesso,
-        departamento: user.departamento,
-        telefone: user.telefone
+        departamento: user.departamento
       }
     });
   } catch (error) {
     console.error('Erro ao autenticar usuário:', error);
     res.status(500).json({ success: false, message: 'Erro ao autenticar usuário' });
+  }
+});
+
+// Obter todos os níveis de autorização
+router.get('/niveis-autorizacao', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM niveis_autorizacao ORDER BY id');
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao buscar níveis de autorização:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar níveis de autorização' });
   }
 });
 

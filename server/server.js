@@ -6,6 +6,7 @@ const requestsRoutes = require('./routes/requests');
 const quotesRoutes = require('./routes/quotes');
 const suppliersRoutes = require('./routes/suppliers');
 const usersRoutes = require('./routes/users');
+const costCentersRoutes = require('./routes/costCenters');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +30,7 @@ app.use('/api/requests', requestsRoutes);
 app.use('/api/quotes', quotesRoutes);
 app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/cost-centers', costCentersRoutes);
 
 // Rota padrão
 app.get('/', (req, res) => {

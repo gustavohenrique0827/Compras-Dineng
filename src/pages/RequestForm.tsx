@@ -38,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { createNewRequest } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
+import CostCenterCombobox from '@/components/cost-center/CostCenterCombobox';
 
 // Validation schema
 const requestFormSchema = z.object({
@@ -129,7 +130,7 @@ const RequestForm = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
-        <div className="section-padding">
+        <div className="p-4 sm:p-6">
           <div className="max-w-3xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold">Nova Solicitação</h2>
@@ -184,7 +185,10 @@ const RequestForm = () => {
                           <FormItem>
                             <FormLabel>Centro de Custo</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ex: CC-001" {...field} />
+                              <CostCenterCombobox
+                                value={field.value}
+                                onChange={field.onChange}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -234,9 +238,12 @@ const RequestForm = () => {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="Materiais">Materiais</SelectItem>
-                                <SelectItem value="Serviços">Serviços</SelectItem>
-                                <SelectItem value="Outros">Outros</SelectItem>
+                                <SelectItem value="Impeditivas">Compras Impeditivas</SelectItem>
+                                <SelectItem value="Consumo">Compras de Consumo</SelectItem>
+                                <SelectItem value="Estoque">Compras para Estoque</SelectItem>
+                                <SelectItem value="Locais">Compras Locais</SelectItem>
+                                <SelectItem value="Investimentos">Compras para Investimentos</SelectItem>
+                                <SelectItem value="Alojamentos">Alojamentos</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
