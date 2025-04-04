@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +13,8 @@ import {
   Building,
   X,
   ArrowRight,
-  Loader2
+  Loader2,
+  Eye
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -40,7 +40,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getAllSuppliers, createSupplier } from '@/utils/database';
 import QuoteComparison from '@/components/QuoteComparison';
 import { useNavigate } from 'react-router-dom';
-import { fetchQuoteRequests, fetchSuppliers, createNewQuote, QuoteItem, Supplier as ApiSupplier, QuoteData } from '@/api/quotes';
+import { fetchQuoteRequests, fetchSuppliers, createNewQuote, QuoteItem, QuoteData } from '@/api/quotes';
 
 // Interface for database-supplied suppliers
 interface Supplier {
@@ -59,8 +59,11 @@ interface Supplier {
 }
 
 // Extend our internal supplier interface to match the API interface
-interface SupplierWithItems extends ApiSupplier {
+interface SupplierWithItems {
+  id: number;
+  name: string;
   nome?: string; // For compatibility with database suppliers
+  items: QuoteItem[];
 }
 
 // Interface for quotes
@@ -115,17 +118,22 @@ const Purchases = () => {
         const loadedSuppliers = await fetchSuppliers();
         
         // Convert the loaded suppliers to the SupplierWithItems format
-        const convertedSuppliers: SupplierWithItems[] = loadedSuppliers.map((supplier: ApiSupplier | Supplier) => {
+        const convertedSuppliers: SupplierWithItems[] = loadedSuppliers.map((supplier: any) => {
           if ('nome' in supplier) {
             // This is a database supplier
             return {
               id: supplier.id,
               name: supplier.nome,
+              nome: supplier.nome,
               items: []
             };
           } else {
             // This is already an ApiSupplier
-            return supplier as SupplierWithItems;
+            return {
+              id: supplier.id,
+              name: supplier.name,
+              items: supplier.items || []
+            };
           }
         });
         
