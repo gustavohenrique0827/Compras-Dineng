@@ -31,7 +31,8 @@ const fetchCostCenters = async (): Promise<CentroCusto[]> => {
     if (!response.ok) {
       throw new Error('Falha ao carregar centros de custo');
     }
-    return response.json();
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Erro ao buscar centros de custo:', error);
     return []; // Retorna array vazio em caso de erro
@@ -50,6 +51,7 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange
   
   // Encontrar centro de custo pelo código
   const findCostCenterName = (code: string) => {
+    if (!costCenters || costCenters.length === 0) return code;
     const center = costCenters.find(c => c.codigo === code);
     return center ? `${center.codigo} - ${center.descricao}` : code;
   };
@@ -87,7 +89,7 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange
               </Button>
             </CommandEmpty>
             <CommandGroup>
-              {costCenters && costCenters.map((center) => (
+              {Array.isArray(costCenters) && costCenters.map((center) => (
                 <CommandItem
                   key={center.id}
                   value={center.codigo}
