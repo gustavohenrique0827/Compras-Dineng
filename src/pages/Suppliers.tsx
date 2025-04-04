@@ -91,12 +91,24 @@ const Suppliers = () => {
     setOpenDetailsDialog(true);
   };
 
-  const filteredSuppliers = suppliers.filter((supplier: Supplier) => 
-    supplier.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    supplier.contato.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (supplier.cnpj && supplier.cnpj.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Safe string comparison for filtering - handles undefined values
+  const safeStringIncludes = (text: string | undefined, search: string): boolean => {
+    if (!text) return false;
+    return text.toLowerCase().includes(search.toLowerCase());
+  };
+
+  const filteredSuppliers = suppliers.filter((supplier: Supplier) => {
+    if (!searchTerm) return true;
+    
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    
+    return (
+      safeStringIncludes(supplier.nome, searchTerm) ||
+      safeStringIncludes(supplier.categoria, searchTerm) ||
+      safeStringIncludes(supplier.contato, searchTerm) ||
+      safeStringIncludes(supplier.cnpj, searchTerm)
+    );
+  });
 
   const form = useForm({
     defaultValues: {
@@ -169,7 +181,7 @@ const Suppliers = () => {
                         onClick={() => handleSupplierClick(supplier)}
                       >
                         <div className="flex justify-between items-start">
-                          <h3 className="font-medium text-lg">{supplier.nome}</h3>
+                          <h3 className="font-medium text-lg">{supplier.nome || 'Sem nome'}</h3>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -186,28 +198,28 @@ const Suppliers = () => {
 
                         <div className="flex items-center gap-2 mt-1 mb-3">
                           <Building className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">CNPJ: {supplier.cnpj}</span>
+                          <span className="text-sm text-muted-foreground">CNPJ: {supplier.cnpj || 'Não informado'}</span>
                         </div>
 
                         <p className="text-sm text-muted-foreground mb-3">
-                          Categoria: {supplier.categoria}
+                          Categoria: {supplier.categoria || 'Não categorizado'}
                         </p>
                         <div className="space-y-2 text-sm">
                           <div className="flex items-center gap-2">
                             <Users className="h-4 w-4 text-muted-foreground" />
-                            <span>{supplier.contato}</span>
+                            <span>{supplier.contato || 'Sem contato'}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span>{supplier.telefone}</span>
+                            <span>{supplier.telefone || 'Sem telefone'}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4 text-muted-foreground" />
-                            <span>{supplier.email}</span>
+                            <span>{supplier.email || 'Sem email'}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span>{supplier.endereco}</span>
+                            <span>{supplier.endereco || 'Sem endereço'}</span>
                           </div>
                         </div>
                       </div>
@@ -414,7 +426,7 @@ const Suppliers = () => {
             <>
               <DialogHeader>
                 <div className="flex items-start justify-between">
-                  <DialogTitle className="text-xl">{selectedSupplier.nome}</DialogTitle>
+                  <DialogTitle className="text-xl">{selectedSupplier.nome || 'Sem nome'}</DialogTitle>
                   <Button 
                     variant="ghost" 
                     size="icon"
@@ -426,10 +438,10 @@ const Suppliers = () => {
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <Building className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">CNPJ: {selectedSupplier.cnpj}</span>
+                  <span className="text-sm text-muted-foreground">CNPJ: {selectedSupplier.cnpj || 'Não informado'}</span>
                 </div>
                 <p className="text-muted-foreground mt-2">
-                  Categoria: {selectedSupplier.categoria}
+                  Categoria: {selectedSupplier.categoria || 'Não categorizado'}
                 </p>
               </DialogHeader>
 
@@ -439,15 +451,15 @@ const Suppliers = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedSupplier.contato}</span>
+                      <span>{selectedSupplier.contato || 'Sem contato'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedSupplier.telefone}</span>
+                      <span>{selectedSupplier.telefone || 'Sem telefone'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedSupplier.email}</span>
+                      <span>{selectedSupplier.email || 'Sem email'}</span>
                     </div>
                   </div>
                 </div>
@@ -457,11 +469,16 @@ const Suppliers = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span>{selectedSupplier.endereco}</span>
+                      <span>{selectedSupplier.endereco || 'Sem endereço'}</span>
                     </div>
-                    {selectedSupplier.cidade && selectedSupplier.estado && (
+                    {(selectedSupplier.cidade || selectedSupplier.estado) && (
                       <div className="ml-6">
-                        <span>{selectedSupplier.cidade} - {selectedSupplier.estado}</span>
+                        <span>
+                          {[
+                            selectedSupplier.cidade, 
+                            selectedSupplier.estado
+                          ].filter(Boolean).join(' - ')}
+                        </span>
                       </div>
                     )}
                     {selectedSupplier.cep && (
