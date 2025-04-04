@@ -3,13 +3,13 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-// Configuração do pool de conexões
+// Configuração do pool de conexões usando variáveis de ambiente
 const pool = mysql.createPool({
-  host: '192.168.0.249',
-  user: 'dineng',
-  password: 'dineng@@2025',
-  database: 'sisdineng',
-  port: 3306,
+  host: process.env.DB_HOST || '192.168.0.249',
+  user: process.env.DB_USER || 'dineng',
+  password: process.env.DB_PASSWORD || 'dineng@@2025',
+  database: process.env.DB_NAME || 'sisdineng',
+  port: parseInt(process.env.DB_PORT || '3306'),
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0

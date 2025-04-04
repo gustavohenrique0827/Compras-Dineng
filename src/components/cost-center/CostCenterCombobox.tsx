@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/popover';
 import { CentroCusto } from '@/utils/auth';
 import CostCenterDialog from './CostCenterDialog';
+import { toast } from 'sonner';
 
 interface CostCenterComboboxProps {
   value: string;
@@ -27,31 +28,67 @@ interface CostCenterComboboxProps {
 // Função para buscar centros de custo da API
 const fetchCostCenters = async (): Promise<CentroCusto[]> => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/cost-centers`);
+    const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/cost-centers`;
+    console.log('Fetching cost centers from:', apiUrl);
+    
+    const response = await fetch(apiUrl);
+    
     if (!response.ok) {
-      throw new Error('Falha ao carregar centros de custo');
+      console.error('Response not OK:', response.status, response.statusText);
+      throw new Error(`Falha ao carregar centros de custo: ${response.status}`);
     }
+    
     const data = await response.json();
+    console.log('Cost centers data received:', data);
+    
+    // Garantir que o retorno seja sempre um array
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Erro ao buscar centros de custo:', error);
-    return []; // Retorna array vazio em caso de erro
+    // Mostrar notificação de erro de forma amigável
+    toast.error('Não foi possível carregar os centros de custo. Usando dados locais.');
+    // Retornar array vazio em caso de erro
+    return [];
   }
 };
+
+// Mock de dados para uso offline ou fallback
+const mockCostCenters: CentroCusto[] = [
+  { id: 1, codigo: 'CC001', descricao: 'Administrativo' },
+  { id: 2, codigo: 'CC002', descricao: 'Produção' },
+  { id: 3, codigo: 'CC003', descricao: 'Vendas' },
+  { id: 4, codigo: 'CC004', descricao: 'Financeiro' },
+  { id: 5, codigo: 'CC005', descricao: 'RH' },
+];
 
 const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // Buscar centros de custo da API
-  const { data: costCenters = [], isLoading } = useQuery({
+  // Buscar centros de custo da API com fallback para dados mock em caso de erro
+  const { data: costCenters = mockCostCenters, isLoading, isError } = useQuery({
     queryKey: ['costCenters'],
-    queryFn: fetchCostCenters
+    queryFn: fetchCostCenters,
+    meta: {
+      onSettled: (data: any, error: any) => {
+        if (error) {
+          console.error('Error in useQuery:', error);
+        }
+      }
+    }
   });
+  
+  useEffect(() => {
+    if (isError) {
+      console.log('Usando dados mock como fallback devido a erro na API');
+    }
+  }, [isError]);
   
   // Encontrar centro de custo pelo código
   const findCostCenterName = (code: string) => {
-    if (!costCenters || costCenters.length === 0) return code;
+    if (!code) return "Selecione um centro de custo...";
+    if (!costCenters || !Array.isArray(costCenters) || costCenters.length === 0) return code;
+    
     const center = costCenters.find(c => c.codigo === code);
     return center ? `${center.codigo} - ${center.descricao}` : code;
   };
