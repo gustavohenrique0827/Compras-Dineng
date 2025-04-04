@@ -5,14 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
-  FileText, 
+  Users, 
   Plus, 
-  Filter, 
   Search,
-  ShoppingCart,
-  Eye,
-  CheckCircle,
-  X
+  MapPin,
+  Phone,
+  Mail,
+  Building,
+  X,
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -22,14 +24,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -39,20 +35,35 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { useNavigate } from 'react-router-dom';
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getAllSuppliers, createSupplier } from '@/utils/database';
 import QuoteComparison from '@/components/QuoteComparison';
+import { useNavigate } from 'react-router-dom';
 import { fetchQuoteRequests, fetchSuppliers, createNewQuote, QuoteItem, Supplier as ApiSupplier, QuoteData } from '@/api/quotes';
 
-// Interface para cotações
+// Interface for database-supplied suppliers
+interface Supplier {
+  id: number;
+  nome: string;
+  cnpj: string;
+  categoria: string;
+  contato: string;
+  telefone: string;
+  email: string;
+  endereco: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+  observacoes?: string;
+}
+
+// Extend our internal supplier interface to match the API interface
+interface SupplierWithItems extends ApiSupplier {
+  nome?: string; // For compatibility with database suppliers
+}
+
+// Interface for quotes
 interface Quote {
   id: number;
   ordem: string;
@@ -63,13 +74,9 @@ interface Quote {
   solicitacao_id?: number;
 }
 
-// Extend our internal supplier interface to match the API interface
-interface SupplierWithItems extends ApiSupplier {
-  nome?: string; // For compatibility with database suppliers
-}
-
 const Purchases = () => {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [openQuoteDialog, setOpenQuoteDialog] = useState(false);
@@ -106,7 +113,23 @@ const Purchases = () => {
     const loadData = async () => {
       try {
         const loadedSuppliers = await fetchSuppliers();
-        setSuppliers(loadedSuppliers);
+        
+        // Convert the loaded suppliers to the SupplierWithItems format
+        const convertedSuppliers: SupplierWithItems[] = loadedSuppliers.map((supplier: ApiSupplier | Supplier) => {
+          if ('nome' in supplier) {
+            // This is a database supplier
+            return {
+              id: supplier.id,
+              name: supplier.nome,
+              items: []
+            };
+          } else {
+            // This is already an ApiSupplier
+            return supplier as SupplierWithItems;
+          }
+        });
+        
+        setSuppliers(convertedSuppliers);
         
         const loadedRequests = await fetchQuoteRequests();
         setQuoteRequests(loadedRequests);
@@ -143,10 +166,10 @@ const Purchases = () => {
     if (supplier) {
       setAddedSuppliers([...addedSuppliers, {
         id: supplier.id,
-        name: supplier.nome || supplier.name || "",
+        name: supplier.name || supplier.nome || "",
         items: []
       }]);
-      toast.success(`Fornecedor ${supplier.nome || supplier.name} adicionado`);
+      toast.success(`Fornecedor ${supplier.name || supplier.nome} adicionado`);
       setSelectedSupplier(null);
     }
   };
@@ -432,7 +455,7 @@ const Purchases = () => {
             
             {/* Seleção de Fornecedores */}
             <Form {...quoteForm}>
-              <form className="space-y-4">
+              <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Fornecedores</h3>
                 </div>
@@ -448,7 +471,7 @@ const Purchases = () => {
                     <SelectContent>
                       {suppliers.map(supplier => (
                         <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                          {supplier.nome || supplier.name}
+                          {supplier.name || supplier.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -463,7 +486,7 @@ const Purchases = () => {
                     <Plus className="h-4 w-4 mr-1" /> Adicionar
                   </Button>
                 </div>
-              </form>
+              </div>
             </Form>
             
             {/* Lista de fornecedores adicionados */}
@@ -518,23 +541,23 @@ const Purchases = () => {
                       <CardTitle className="text-base">{supplier.name}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Table className="border">
-                        <TableHeader className="bg-blue-800 text-white">
-                          <TableRow>
-                            <TableHead className="text-white">Item</TableHead>
-                            <TableHead className="text-center text-white w-[100px]">Qtd</TableHead>
-                            <TableHead className="text-center text-white">Valor unitário</TableHead>
-                            <TableHead className="text-center text-white">Valor total</TableHead>
-                            <TableHead className="text-center text-white w-20">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                      <table className="w-full border">
+                        <thead className="bg-blue-800 text-white">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-white">Item</th>
+                            <th className="px-4 py-2 text-center text-white w-[100px]">Qtd</th>
+                            <th className="px-4 py-2 text-center text-white">Valor unitário</th>
+                            <th className="px-4 py-2 text-center text-white">Valor total</th>
+                            <th className="px-4 py-2 text-center text-white w-20">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
                           {items
                             .filter(item => item.supplierId === supplier.id)
                             .map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell>{item.itemName}</TableCell>
-                                <TableCell className="text-center">
+                              <tr key={item.id}>
+                                <td className="px-4 py-2 border">{item.itemName}</td>
+                                <td className="px-4 py-2 border text-center">
                                   <Input 
                                     type="number" 
                                     min="1"
@@ -542,8 +565,8 @@ const Purchases = () => {
                                     onChange={(e) => updateItemQuantity(item.id, Number(e.target.value))}
                                     className="max-w-[80px] mx-auto text-center"
                                   />
-                                </TableCell>
-                                <TableCell>
+                                </td>
+                                <td className="px-4 py-2 border">
                                   <Input 
                                     type="number" 
                                     step="0.01"
@@ -553,11 +576,11 @@ const Purchases = () => {
                                     className="max-w-[150px] mx-auto text-right"
                                     placeholder="0,00"
                                   />
-                                </TableCell>
-                                <TableCell className="text-center">
+                                </td>
+                                <td className="px-4 py-2 border text-center">
                                   R$ {(item.price * item.quantity).toFixed(2)}
-                                </TableCell>
-                                <TableCell className="text-center">
+                                </td>
+                                <td className="px-4 py-2 border text-center">
                                   <Button 
                                     variant="destructive" 
                                     size="sm"
@@ -565,20 +588,20 @@ const Purchases = () => {
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
-                                </TableCell>
-                              </TableRow>
+                                </td>
+                              </tr>
                             ))}
-                          <TableRow>
-                            <TableCell colSpan={3} className="text-right font-medium">
+                          <tr>
+                            <td colSpan={3} className="px-4 py-2 border text-right font-medium">
                               Subtotal:
-                            </TableCell>
-                            <TableCell className="text-center font-medium">
+                            </td>
+                            <td className="px-4 py-2 border text-center font-medium">
                               R$ {calculateSupplierTotal(supplier.id).toFixed(2)}
-                            </TableCell>
-                            <TableCell></TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
+                            </td>
+                            <td className="px-4 py-2 border"></td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </CardContent>
                   </Card>
                 ))}
