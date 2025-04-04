@@ -28,6 +28,44 @@ router.get('/requests', async (req, res) => {
   }
 });
 
+// Obter cotações por ID de solicitação
+router.get('/by-request/:requestId', async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const [rows] = await pool.query('SELECT * FROM cotacoes WHERE solicitacao_id = ?', [requestId]);
+    
+    // Formatar os dados para o formato esperado pelo componente QuoteComparison
+    const formattedData = [];
+    
+    for (const row of rows) {
+      // Buscar detalhes dos itens desta cotação
+      const [items] = await pool.query(`
+        SELECT i.* FROM itens_cotacao i
+        WHERE i.cotacao_id = ?
+      `, [row.id]);
+      
+      // Formatar para o formato esperado
+      formattedData.push({
+        id: row.id,
+        supplierId: row.fornecedor_id,
+        supplierName: row.fornecedor,
+        items: items.map(item => ({
+          id: item.id,
+          itemName: item.descricao,
+          quantity: item.quantidade,
+          price: item.valor_unitario,
+          supplierId: row.fornecedor_id
+        }))
+      });
+    }
+    
+    res.json(formattedData);
+  } catch (error) {
+    console.error(`Erro ao buscar cotações para a solicitação ${req.params.requestId}:`, error);
+    res.status(500).json({ message: 'Erro ao buscar cotações', error: error.message });
+  }
+});
+
 // Criar nova cotação
 router.post('/', async (req, res) => {
   const connection = await pool.getConnection();
@@ -53,6 +91,25 @@ router.post('/', async (req, res) => {
     );
     
     const quoteId = result.insertId;
+    
+    // Se tiver itens, inserir cada um
+    if (quoteData.items && quoteData.items.length > 0) {
+      for (const item of quoteData.items) {
+        await connection.query(
+          `INSERT INTO itens_cotacao 
+           (cotacao_id, descricao, quantidade, valor_unitario, valor_total, fornecedor_id) 
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            quoteId,
+            item.description || item.itemName,
+            item.quantity,
+            item.price,
+            item.price * item.quantity,
+            item.supplierId
+          ]
+        );
+      }
+    }
     
     // Atualizar a solicitação para status "Em Cotação" se necessário
     await connection.query(`
@@ -105,26 +162,61 @@ router.patch('/:id/status', async (req, res) => {
 
 // Finalizar cotação (simula seleção final de itens)
 router.post('/:requestId/finalize', async (req, res) => {
+  const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
+    
     const { requestId } = req.params;
     const { selectedItems } = req.body;
     
-    // Aqui você implementaria a lógica para salvar a seleção final no banco de dados
-    // Este é um exemplo básico, você precisaria adaptar conforme seu esquema de banco de dados
-    
-    console.log(`Finalizando cotação para solicitação ${requestId} com itens:`, selectedItems);
-    
+    // Calcular valor total
     const totalValue = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
+    // Agrupar itens por fornecedor
+    const supplierGroups = {};
+    selectedItems.forEach(item => {
+      if (!supplierGroups[item.supplierId]) {
+        supplierGroups[item.supplierId] = [];
+      }
+      supplierGroups[item.supplierId].push(item);
+    });
+    
+    // Marcar cotações aprovadas e rejeitadas
+    for (const supplierId in supplierGroups) {
+      // Marcar esta cotação como aprovada
+      await connection.query(
+        `UPDATE cotacoes SET status = 'Aprovada' WHERE solicitacao_id = ? AND fornecedor_id = ?`,
+        [requestId, supplierId]
+      );
+    }
+    
+    // Marcar outras cotações como rejeitadas
+    await connection.query(
+      `UPDATE cotacoes SET status = 'Rejeitada' 
+       WHERE solicitacao_id = ? AND status = 'Em Cotação' AND fornecedor_id NOT IN (?)`,
+      [requestId, Object.keys(supplierGroups)]
+    );
+    
+    // Atualizar status da solicitação
+    await connection.query(
+      `UPDATE solicitacoes SET status = 'Em Compra' WHERE id = ?`,
+      [requestId]
+    );
+    
+    await connection.commit();
     res.json({
       success: true,
       requestId,
       totalValue,
+      supplierGroups,
       message: 'Cotação finalizada com sucesso'
     });
   } catch (error) {
+    await connection.rollback();
     console.error(`Erro ao finalizar cotação para solicitação ${req.params.requestId}:`, error);
     res.status(500).json({ message: 'Erro ao finalizar cotação', error: error.message });
+  } finally {
+    connection.release();
   }
 });
 

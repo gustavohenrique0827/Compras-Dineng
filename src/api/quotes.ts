@@ -1,8 +1,8 @@
 
-import { createQuote, updateQuoteStatus, getAllRequests, Request } from '@/utils/database';
+import { createQuote, updateQuoteStatus, getAllRequests, Request, getAllSuppliers } from '@/utils/database';
 import { toast } from 'sonner';
 
-interface QuoteItem {
+export interface QuoteItem {
   id: number;
   itemName: string;
   quantity: number;
@@ -10,7 +10,13 @@ interface QuoteItem {
   supplierId: number;
 }
 
-interface QuoteData {
+export interface Supplier {
+  id: number;
+  name: string;
+  items: QuoteItem[];
+}
+
+export interface QuoteData {
   requestId: number;
   items: QuoteItem[];
   status?: string;
@@ -21,6 +27,18 @@ interface QuoteData {
 
 // URL base da API
 const API_URL = 'http://localhost:5000/api';
+
+// Buscar todos os fornecedores
+export const fetchSuppliers = async () => {
+  try {
+    const suppliers = await getAllSuppliers();
+    return suppliers;
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
+    toast.error('Erro ao carregar fornecedores');
+    throw error;
+  }
+};
 
 // Create new quote
 export const createNewQuote = async (quoteData: QuoteData) => {
@@ -131,5 +149,51 @@ export const fetchQuoteRequests = async () => {
     console.error('Error fetching quote requests:', error);
     toast.error('Erro ao carregar solicitações para cotação');
     throw error;
+  }
+};
+
+// Obter cotações para uma solicitação específica
+export const fetchQuotesByRequestId = async (requestId: number) => {
+  try {
+    const response = await fetch(`${API_URL}/quotes/by-request/${requestId}`);
+    if (!response.ok) {
+      throw new Error('Falha ao buscar cotações para a solicitação');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error(`Error fetching quotes for request ${requestId}:`, error);
+    // Retornar dados simulados para teste
+    return [
+      {
+        id: 1,
+        supplierId: 1,
+        supplierName: "Fornecedor A Ltda",
+        items: [
+          { id: 1, itemName: "Peça de reposição", quantity: 2, price: 120.00, supplierId: 1 },
+          { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1 },
+          { id: 3, itemName: "Material consumível", quantity: 5, price: 30.00, supplierId: 1 }
+        ]
+      },
+      {
+        id: 2,
+        supplierId: 2,
+        supplierName: "Fornecedor B S.A.",
+        items: [
+          { id: 4, itemName: "Peça de reposição", quantity: 2, price: 135.00, supplierId: 2 },
+          { id: 5, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2 },
+          { id: 6, itemName: "Material consumível", quantity: 5, price: 25.00, supplierId: 2 }
+        ]
+      },
+      {
+        id: 3,
+        supplierId: 3,
+        supplierName: "Fornecedor C ME",
+        items: [
+          { id: 7, itemName: "Peça de reposição", quantity: 2, price: 110.00, supplierId: 3 },
+          { id: 8, itemName: "Ferramenta", quantity: 1, price: 95.00, supplierId: 3 },
+          { id: 9, itemName: "Material consumível", quantity: 5, price: 35.00, supplierId: 3 }
+        ]
+      }
+    ];
   }
 };

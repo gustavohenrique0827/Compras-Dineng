@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { finalizeQuote } from '@/api/quotes';
+import { useNavigate } from 'react-router-dom';
 
 interface QuoteItem {
   id: number;
@@ -23,16 +26,19 @@ interface QuoteComparisonProps {
   onFinish: (selectedItems: QuoteItem[]) => void;
   onCancel: () => void;
   viewOnly?: boolean;
+  requestId?: number;
 }
 
 const QuoteComparison: React.FC<QuoteComparisonProps> = ({ 
   suppliers, 
   onFinish, 
   onCancel,
-  viewOnly = false
+  viewOnly = false,
+  requestId
 }) => {
   const [selectedItems, setSelectedItems] = useState<QuoteItem[]>([]);
   const [totalSelected, setTotalSelected] = useState<number>(0);
+  const navigate = useNavigate();
   
   // Find all unique items across all suppliers
   const uniqueItems = React.useMemo(() => {
@@ -79,7 +85,8 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
     // Add all items from this supplier
     setSelectedItems([...filteredSelection, ...itemsFromSupplier]);
     
-    toast.success(`Todos os itens do fornecedor ${suppliers.find(s => s.id === supplierId)?.name} selecionados`);
+    const supplierName = suppliers.find(s => s.id === supplierId)?.name || supplierId.toString();
+    toast.success(`Todos os itens do fornecedor ${supplierName} selecionados`);
   };
   
   // Calculate the total value of selected items
@@ -89,13 +96,30 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
   }, [selectedItems]);
   
   // Handle the quote finalization
-  const handleFinishQuote = () => {
+  const handleFinishQuote = async () => {
     if (selectedItems.length === 0) {
       toast.error("Selecione pelo menos um item para finalizar a cotação");
       return;
     }
     
-    onFinish(selectedItems);
+    if (requestId) {
+      try {
+        // Enviar para API com finalizeQuote
+        const result = await finalizeQuote(requestId, selectedItems);
+        toast.success("Cotação finalizada com sucesso!");
+        
+        // Redirecionar para a página de cotações
+        setTimeout(() => {
+          navigate('/purchases');
+        }, 1500);
+      } catch (error) {
+        console.error("Erro ao finalizar cotação:", error);
+        toast.error("Erro ao finalizar cotação");
+      }
+    } else {
+      // Método antigo (callback)
+      onFinish(selectedItems);
+    }
   };
 
   const handleRejectQuote = () => {
@@ -111,22 +135,23 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
       
       <div className="grid grid-cols-3 gap-2 mb-4">
         {suppliers.map(supplier => (
-          <div 
-            key={supplier.id} 
-            className="p-2 flex justify-between items-center rounded-md border"
-          >
-            <span>Fornecedor {supplier.id}</span>
-            {!viewOnly && (
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                className="text-xs"
-                onClick={() => selectAllFromSupplier(supplier.id)}
-              >
-                Selecionar Todos
-              </Button>
-            )}
-          </div>
+          <Card key={supplier.id} className="p-0">
+            <CardHeader className="pb-2 pt-3">
+              <CardTitle className="text-sm flex justify-between items-center">
+                <span>Fornecedor: {supplier.name}</span>
+                {!viewOnly && (
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    className="text-xs"
+                    onClick={() => selectAllFromSupplier(supplier.id)}
+                  >
+                    Selecionar Todos
+                  </Button>
+                )}
+              </CardTitle>
+            </CardHeader>
+          </Card>
         ))}
       </div>
       
@@ -146,10 +171,16 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
             );
             
             return (
-              <div key={`${supplier.id}-${supplierItem.id}`} className="flex justify-between items-center p-2 rounded-md border">
+              <div 
+                key={`${supplier.id}-${supplierItem.id}`} 
+                className={`flex justify-between items-center p-2 rounded-md border ${
+                  isSelected ? 'border-green-500 bg-green-50' : ''
+                }`}
+              >
                 <div>
                   <div className="font-medium">{supplierItem.itemName}</div>
                   <div className="text-sm text-slate-600 dark:text-slate-400">R$ {supplierItem.price.toFixed(2)}</div>
+                  <div className="text-xs text-slate-500">Quantidade: {supplierItem.quantity}</div>
                 </div>
                 {!viewOnly ? (
                   <Checkbox 
@@ -191,6 +222,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
             </Button>
             <Button 
               onClick={handleFinishQuote}
+              className="bg-green-500 hover:bg-green-600"
             >
               Aprovar Cotação
             </Button>

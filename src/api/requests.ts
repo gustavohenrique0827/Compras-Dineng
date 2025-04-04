@@ -4,9 +4,11 @@ import {
   getRequestById, 
   createRequest, 
   updateRequestStatus,
+  updateRequestDetails,
   Request
 } from '@/utils/database';
 import { toast } from 'sonner';
+import { fetchQuotesByRequestId } from './quotes';
 
 // Fetch all requests
 export const fetchRequests = async (): Promise<Request[]> => {
@@ -69,6 +71,33 @@ export const updateStatus = async (id: number, status: string, approvalData?: an
   } catch (error) {
     console.error(`Error updating request ${id} status:`, error);
     toast.error('Erro ao atualizar status da solicitação');
+    throw error;
+  }
+};
+
+// Update request details
+export const updateRequest = async (id: number, requestData: Partial<Request>) => {
+  try {
+    const success = await updateRequestDetails(id, requestData);
+    if (success) {
+      toast.success('Detalhes da solicitação atualizados com sucesso!');
+    }
+    return success;
+  } catch (error) {
+    console.error(`Error updating request ${id}:`, error);
+    toast.error('Erro ao atualizar detalhes da solicitação');
+    throw error;
+  }
+};
+
+// Get quotes for request
+export const getQuotesForRequest = async (requestId: number) => {
+  try {
+    const quotes = await fetchQuotesByRequestId(requestId);
+    return quotes;
+  } catch (error) {
+    console.error(`Error fetching quotes for request ${requestId}:`, error);
+    toast.error('Erro ao carregar cotações para a solicitação');
     throw error;
   }
 };

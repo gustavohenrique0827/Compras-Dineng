@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import {
   Search,
   ShoppingCart,
   Eye,
-  CheckCircle
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -50,6 +51,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import QuoteComparison from '@/components/QuoteComparison';
+import { fetchQuoteRequests, fetchSuppliers, createNewQuote } from '@/api/quotes';
 
 // Interface para cotações
 interface Quote {
@@ -59,6 +61,7 @@ interface Quote {
   valor: string;
   status: string;
   data: string;
+  solicitacao_id?: number;
 }
 
 // Interface para detalhes da cotação
@@ -76,6 +79,16 @@ interface QuoteDetail {
 interface Supplier {
   id: number;
   nome: string;
+  cnpj?: string;
+}
+
+// Interface para item da cotação
+interface QuoteItem {
+  id: number;
+  description: string;
+  quantity: number;
+  price: number;
+  supplierId: number;
 }
 
 const Purchases = () => {
@@ -87,62 +100,141 @@ const Purchases = () => {
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const navigate = useNavigate();
   
-  // Dados de exemplo para cotações
-  const mockQuotes: Quote[] = [
-    { id: 1, ordem: 'OC-2023-001', fornecedor: 'Fornecedor A', valor: 'R$ 5.320,00', status: 'Em andamento', data: '10/05/2023' },
-    { id: 2, ordem: 'OC-2023-002', fornecedor: 'Fornecedor B', valor: 'R$ 1.250,00', status: 'Finalizada', data: '22/05/2023' },
-    { id: 3, ordem: 'OC-2023-003', fornecedor: 'Fornecedor C', valor: 'R$ 8.740,50', status: 'Em andamento', data: '03/06/2023' },
-    { id: 4, ordem: 'OC-2023-004', fornecedor: 'Fornecedor D', valor: 'R$ 3.600,00', status: 'Finalizada', data: '15/06/2023' },
-  ];
+  // Estado para armazenar as cotações carregadas do banco de dados
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  // Estado para armazenar os fornecedores do banco de dados
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  // Estado para armazenar solicitações disponíveis para cotação
+  const [quoteRequests, setQuoteRequests] = useState<any[]>([]);
+  // Estado para o fornecedor selecionado na dialog de nova cotação
+  const [selectedSupplier, setSelectedSupplier] = useState<number | null>(null);
+  // Estado para fornecedores adicionados à cotação
+  const [addedSuppliers, setAddedSuppliers] = useState<Supplier[]>([]);
+  // Estado para os itens da cotação
+  const [items, setItems] = useState<QuoteItem[]>([]);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemQuantity, setNewItemQuantity] = useState(1);
+  const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null);
 
-  // Dados de exemplo para detalhes da cotação e declarando o setter corretamente
-  const [quoteDetails, setQuoteDetails] = useState<QuoteDetail[]>([
-    { id: 1, description: "Peça de reposição", quantity: 2, priceSupplier1: 120, priceSupplier2: 135, priceSupplier3: 110, selectedSupplier: null },
-    { id: 2, description: "Ferramenta", quantity: 1, priceSupplier1: 80, priceSupplier2: 75, priceSupplier3: 95, selectedSupplier: null },
-    { id: 3, description: "Material consumível", quantity: 5, priceSupplier1: 30, priceSupplier2: 25, priceSupplier3: 35, selectedSupplier: null }
-  ]);
+  // Carregando fornecedores e solicitações para cotação
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const loadedSuppliers = await fetchSuppliers();
+        setSuppliers(loadedSuppliers);
+        
+        const loadedRequests = await fetchQuoteRequests();
+        setQuoteRequests(loadedRequests);
+        
+        // Carregar cotações existentes (aqui usamos mock por enquanto)
+        setQuotes([
+          { id: 1, ordem: 'OC-2023-001', fornecedor: 'Fornecedor A', valor: 'R$ 5.320,00', status: 'Em andamento', data: '10/05/2023', solicitacao_id: 1 },
+          { id: 2, ordem: 'OC-2023-002', fornecedor: 'Fornecedor B', valor: 'R$ 1.250,00', status: 'Finalizada', data: '22/05/2023', solicitacao_id: 2 },
+          { id: 3, ordem: 'OC-2023-003', fornecedor: 'Fornecedor C', valor: 'R$ 8.740,50', status: 'Em andamento', data: '03/06/2023', solicitacao_id: 3 }
+        ]);
+      } catch (error) {
+        console.error('Erro ao carregar dados iniciais:', error);
+        toast.error('Erro ao carregar dados');
+      }
+    };
+    
+    loadData();
+  }, []);
 
-  // Dados de exemplo para fornecedores
-  const [suppliers] = useState<Supplier[]>([
-    { id: 1, nome: 'Fornecedor A Ltda' },
-    { id: 2, nome: 'Fornecedor B S.A.' },
-    { id: 3, nome: 'Fornecedor C ME' },
-    { id: 4, nome: 'Fornecedor D EPP' },
-  ]);
-
-  // Dados de exemplo para QuoteComparison
-  const supplierQuotes = [
-    {
-      id: 1,
-      name: "1",
-      items: [
-        { id: 1, itemName: "Peça de reposição", quantity: 2, price: 120.00, supplierId: 1 },
-        { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1 },
-        { id: 3, itemName: "Material consumível", quantity: 5, price: 30.00, supplierId: 1 }
-      ]
-    },
-    {
-      id: 2,
-      name: "2",
-      items: [
-        { id: 4, itemName: "Peça de reposição", quantity: 2, price: 135.00, supplierId: 2 },
-        { id: 5, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2 },
-        { id: 6, itemName: "Material consumível", quantity: 5, price: 25.00, supplierId: 2 }
-      ]
-    },
-    {
-      id: 3,
-      name: "3",
-      items: [
-        { id: 7, itemName: "Peça de reposição", quantity: 2, price: 110.00, supplierId: 3 },
-        { id: 8, itemName: "Ferramenta", quantity: 1, price: 95.00, supplierId: 3 },
-        { id: 9, itemName: "Material consumível", quantity: 5, price: 35.00, supplierId: 3 }
-      ]
+  // Função para adicionar fornecedor à cotação
+  const addSupplierToQuote = () => {
+    if (!selectedSupplier) {
+      toast.error('Selecione um fornecedor');
+      return;
     }
-  ];
-  
+    
+    const supplierExists = addedSuppliers.some(s => s.id === selectedSupplier);
+    if (supplierExists) {
+      toast.error('Este fornecedor já foi adicionado');
+      return;
+    }
+    
+    const supplier = suppliers.find(s => s.id === selectedSupplier);
+    if (supplier) {
+      setAddedSuppliers([...addedSuppliers, supplier]);
+      toast.success(`Fornecedor ${supplier.nome} adicionado`);
+      setSelectedSupplier(null);
+    }
+  };
+
+  // Função para remover fornecedor da cotação
+  const removeSupplierFromQuote = (supplierId: number) => {
+    setAddedSuppliers(addedSuppliers.filter(s => s.id !== supplierId));
+    // Também remover todos os itens deste fornecedor
+    setItems(items.filter(item => item.supplierId !== supplierId));
+  };
+
+  // Função para adicionar item à cotação
+  const addItemToQuote = () => {
+    if (!newItemName.trim()) {
+      toast.error('Informe o nome do item');
+      return;
+    }
+    
+    if (newItemQuantity <= 0) {
+      toast.error('A quantidade deve ser maior que zero');
+      return;
+    }
+    
+    if (addedSuppliers.length === 0) {
+      toast.error('Adicione pelo menos um fornecedor primeiro');
+      return;
+    }
+    
+    // Criar um item para cada fornecedor
+    const newItems = addedSuppliers.map(supplier => ({
+      id: Date.now() + Math.random(),  // ID temporário único
+      description: newItemName,
+      quantity: newItemQuantity,
+      price: 0,
+      supplierId: supplier.id
+    }));
+    
+    setItems([...items, ...newItems]);
+    setNewItemName('');
+    setNewItemQuantity(1);
+    toast.success('Item adicionado para todos os fornecedores');
+  };
+
+  // Função para remover item
+  const removeItem = (itemId: number) => {
+    setItems(items.filter(item => item.id !== itemId));
+  };
+
+  // Atualizar quantidade de um item
+  const updateItemQuantity = (itemId: number, quantity: number) => {
+    setItems(items.map(item => 
+      item.id === itemId ? { ...item, quantity } : item
+    ));
+  };
+
+  // Atualizar preço de um item
+  const updateItemPrice = (itemId: number, price: number) => {
+    setItems(items.map(item => 
+      item.id === itemId ? { ...item, price } : item
+    ));
+  };
+
+  // Calcular valor total para um fornecedor
+  const calculateSupplierTotal = (supplierId: number) => {
+    return items
+      .filter(item => item.supplierId === supplierId)
+      .reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
   const handleNewQuote = () => {
     setOpenQuoteDialog(true);
+    // Limpar dados do formulário anterior
+    setSelectedRequestId(null);
+    setAddedSuppliers([]);
+    setItems([]);
+    setNewItemName('');
+    setNewItemQuantity(1);
   };
   
   const handleViewQuoteDetails = (quote: Quote) => {
@@ -150,7 +242,7 @@ const Purchases = () => {
     setOpenDetailsDialog(true);
   };
 
-  const filteredQuotes = mockQuotes.filter(quote => {
+  const filteredQuotes = quotes.filter(quote => {
     const matchesSearch = quote.ordem.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          quote.fornecedor.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' ? true : quote.status === filterStatus;
@@ -161,97 +253,72 @@ const Purchases = () => {
   const form = useForm({
     defaultValues: {
       requestId: "",
-      supplier1: "",
-      supplier2: "",
-      supplier3: "",
-      items: [{ id: 1, description: "Item 1", quantity: 1, price1: 0, price2: 0, price3: 0 }]
+      supplier: ""
     }
   });
 
-  const [items, setItems] = useState([
-    { id: 1, description: "Item 1", quantity: 1, price1: 0, price2: 0, price3: 0 }
-  ]);
+  // Função para salvar a cotação
+  const handleSaveQuote = async () => {
+    if (!selectedRequestId) {
+      toast.error("Selecione uma solicitação");
+      return;
+    }
+    
+    if (addedSuppliers.length === 0) {
+      toast.error("Adicione pelo menos um fornecedor");
+      return;
+    }
+    
+    if (items.length === 0) {
+      toast.error("Adicione pelo menos um item");
+      return;
+    }
 
-  const addItem = () => {
-    const newItem = { 
-      id: items.length + 1, 
-      description: `Item ${items.length + 1}`, 
-      quantity: 1, 
-      price1: 0, 
-      price2: 0, 
-      price3: 0 
-    };
-    setItems([...items, newItem]);
-  };
+    // Verificar se todos os itens têm preço válido
+    const invalidItem = items.find(item => item.price <= 0);
+    if (invalidItem) {
+      toast.error(`Informe um preço válido para o item ${invalidItem.description}`);
+      return;
+    }
 
-  const updateItemQuantity = (id: number, quantity: number) => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, quantity } : item
-    ));
-  };
-
-  const updateItemPrice = (id: number, supplier: number, price: number) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        if (supplier === 1) return { ...item, price1: price };
-        if (supplier === 2) return { ...item, price2: price };
-        if (supplier === 3) return { ...item, price3: price };
-      }
-      return item;
-    }));
-  };
-
-  const calculateTotal = (supplier: number) => {
-    return items.reduce((total, item) => {
-      let price = 0;
-      if (supplier === 1) price = item.price1;
-      if (supplier === 2) price = item.price2;
-      if (supplier === 3) price = item.price3;
-      return total + (price * item.quantity);
-    }, 0);
+    try {
+      // Preparar dados para salvar
+      const quoteData = {
+        requestId: selectedRequestId,
+        items: items,
+        status: "Em Cotação",
+        totalValue: items.reduce((total, item) => total + (item.price * item.quantity), 0)
+      };
+      
+      await createNewQuote(quoteData);
+      setOpenQuoteDialog(false);
+      
+      // Atualizar a lista de cotações (normalmente buscaríamos do banco de dados novamente)
+      // Por enquanto, vamos adicionar uma nova cotação simulada à lista
+      const newQuote = {
+        id: quotes.length + 1,
+        ordem: `OC-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`,
+        fornecedor: addedSuppliers.map(s => s.nome).join(', '),
+        valor: `R$ ${quoteData.totalValue.toFixed(2)}`,
+        status: 'Em andamento',
+        data: new Date().toLocaleDateString('pt-BR'),
+        solicitacao_id: selectedRequestId
+      };
+      
+      setQuotes([...quotes, newQuote]);
+      
+      // Redirecionar para a página de cotações
+      // Como já estamos na página de cotações, apenas atualizamos a página
+      toast.success("Cotação salva com sucesso!");
+    } catch (error) {
+      console.error("Erro ao salvar cotação:", error);
+      toast.error("Erro ao salvar cotação");
+    }
   };
 
   // Função para lidar com a seleção de fornecedor para um item
   const handleSupplierSelection = (itemId: number, supplierId: number) => {
-    setQuoteDetails(quoteDetails.map(item => 
-      item.id === itemId 
-        ? { ...item, selectedSupplier: item.selectedSupplier === supplierId ? null : supplierId } 
-        : item
-    ));
-  };
-
-  // Calcular o valor total baseado nas seleções atuais
-  const calculateSelectedTotal = () => {
-    return quoteDetails.reduce((total, item) => {
-      if (item.selectedSupplier === 1) {
-        return total + (item.priceSupplier1 * item.quantity);
-      } else if (item.selectedSupplier === 2) {
-        return total + (item.priceSupplier2 * item.quantity);
-      } else if (item.selectedSupplier === 3) {
-        return total + (item.priceSupplier3 * item.quantity);
-      }
-      return total;
-    }, 0);
-  };
-
-  const onSubmit = (data: any) => {
-    console.log("Submitting quote data:", { ...data, items });
-    toast.success("Cotação salva com sucesso");
-    setOpenQuoteDialog(false);
-  };
-
-  // Função para finalizar a cotação
-  const handleFinalizeQuote = () => {
-    // Verificar se pelo menos um item tem um fornecedor selecionado
-    const hasSelection = quoteDetails.some(item => item.selectedSupplier !== null);
-    
-    if (!hasSelection) {
-      toast.error("Selecione pelo menos um item para finalizar a cotação");
-      return;
-    }
-    
-    toast.success("Cotação finalizada com sucesso!");
-    setOpenDetailsDialog(false);
+    // Implementar lógica de seleção
   };
 
   // Mock function for handling the completion of quote comparison
@@ -359,7 +426,7 @@ const Purchases = () => {
         </div>
       </main>
 
-      {/* Dialog para Nova Cotação - Reformulado conforme solicitado */}
+      {/* Dialog para Nova Cotação - Reorganizado */}
       <Dialog open={openQuoteDialog} onOpenChange={setOpenQuoteDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -369,244 +436,193 @@ const Purchases = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Centro de Custo (ID) */}
-              <div className="mb-6">
-                <FormField
-                  control={form.control}
-                  name="requestId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg font-medium">Centro de Custo</FormLabel>
-                      <FormControl>
-                        <Input placeholder="ID do Centro de Custo" {...field} className="max-w-xs" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <div className="space-y-6">
+            {/* Seleção da Solicitação */}
+            <div className="mb-6">
+              <FormLabel className="text-lg font-medium">Solicitação</FormLabel>
+              <Select 
+                value={selectedRequestId?.toString() || ""} 
+                onValueChange={(value) => setSelectedRequestId(Number(value))}
+              >
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue placeholder="Selecione a solicitação" />
+                </SelectTrigger>
+                <SelectContent>
+                  {quoteRequests.map(request => (
+                    <SelectItem key={request.id} value={request.id.toString()}>
+                      {request.id} - {request.aplicacao || request.nome_solicitante}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Seleção de Fornecedores */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Fornecedores</h3>
               </div>
               
-              {/* Seleção de Fornecedores */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Fornecedores</h3>
-                </div>
-                
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Fornecedor 1 */}
-                  <div className="flex items-center gap-2">
-                    <FormField
-                      control={form.control}
-                      name="supplier1"
-                      render={({ field }) => (
-                        <FormItem className="flex-1 min-w-[250px]">
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione o fornecedor" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {suppliers.map(supplier => (
-                                <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                                  {supplier.nome}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="bg-green-500 hover:bg-green-600 text-white"
-                      onClick={() => {
-                        // Lógica para adicionar o fornecedor à lista
-                        toast.success("Fornecedor adicionado");
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-1" /> Adicionar
-                    </Button>
-                  </div>
-                  
-                  {/* Lista de fornecedores adicionados */}
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {[1, 2].map(index => (
-                      <div key={index} className="bg-muted px-3 py-1 rounded-md flex items-center gap-2">
-                        <span>Fornecedor {index}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-5 w-5 p-0 rounded-full"
-                          onClick={() => {
-                            // Lógica para remover o fornecedor
-                          }}
-                        >
-                          ×
-                        </Button>
-                      </div>
+              <div className="flex items-center gap-2">
+                <Select 
+                  value={selectedSupplier?.toString() || ""} 
+                  onValueChange={(value) => setSelectedSupplier(Number(value))}
+                >
+                  <SelectTrigger className="min-w-[250px]">
+                    <SelectValue placeholder="Selecione o fornecedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(supplier => (
+                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                        {supplier.nome}
+                      </SelectItem>
                     ))}
-                  </div>
-                </div>
+                  </SelectContent>
+                </Select>
+                
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="bg-green-500 hover:bg-green-600 text-white"
+                  onClick={addSupplierToQuote}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Adicionar
+                </Button>
               </div>
               
-              {/* Tabelas de Itens */}
+              {/* Lista de fornecedores adicionados */}
+              {addedSuppliers.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {addedSuppliers.map(supplier => (
+                    <div key={supplier.id} className="bg-muted px-3 py-1 rounded-md flex items-center gap-2">
+                      <span>{supplier.nome}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-5 w-5 p-0 rounded-full"
+                        onClick={() => removeSupplierFromQuote(supplier.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Adição de Itens */}
+            {addedSuppliers.length > 0 && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Itens</h3>
                   <div className="flex gap-2">
-                    <Input placeholder="Nome do item" className="w-[250px]" />
-                    <Input type="number" placeholder="Qtd" className="w-20" min="1" />
-                    <Button type="button" variant="outline">
+                    <Input 
+                      placeholder="Nome do item" 
+                      className="w-[250px]" 
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                    />
+                    <Input 
+                      type="number" 
+                      placeholder="Qtd" 
+                      className="w-20" 
+                      min="1"
+                      value={newItemQuantity}
+                      onChange={(e) => setNewItemQuantity(Number(e.target.value))}
+                    />
+                    <Button type="button" variant="outline" onClick={addItemToQuote}>
                       <Plus className="h-4 w-4 mr-1" /> Adicionar Item
                     </Button>
                   </div>
                 </div>
                 
-                {/* Tabela para Fornecedor 1 */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Fornecedor 1</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table className="border">
-                      <TableHeader className="bg-blue-800 text-white">
-                        <TableRow>
-                          <TableHead className="text-white">Item</TableHead>
-                          <TableHead className="text-center text-white w-[100px]">Qtd</TableHead>
-                          <TableHead className="text-center text-white">Valor unitário</TableHead>
-                          <TableHead className="text-center text-white">Valor total</TableHead>
-                          <TableHead className="text-center text-white w-20">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {items.slice(0, 2).map((item) => (
-                          <TableRow key={`f1-${item.id}`}>
-                            <TableCell>{item.description}</TableCell>
-                            <TableCell className="text-center">
-                              <Input 
-                                type="number" 
-                                min="1"
-                                value={item.quantity}
-                                className="max-w-[80px] mx-auto text-center"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input 
-                                type="number" 
-                                step="0.01"
-                                min="0"
-                                className="max-w-[150px] mx-auto text-right"
-                                placeholder="0,00"
-                              />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              R$ {(item.price1 * item.quantity).toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                              >
-                                ×
-                              </Button>
-                            </TableCell>
+                {/* Tabelas de Itens por Fornecedor */}
+                {addedSuppliers.map(supplier => (
+                  <Card key={supplier.id}>
+                    <CardHeader>
+                      <CardTitle className="text-base">{supplier.nome}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table className="border">
+                        <TableHeader className="bg-blue-800 text-white">
+                          <TableRow>
+                            <TableHead className="text-white">Item</TableHead>
+                            <TableHead className="text-center text-white w-[100px]">Qtd</TableHead>
+                            <TableHead className="text-center text-white">Valor unitário</TableHead>
+                            <TableHead className="text-center text-white">Valor total</TableHead>
+                            <TableHead className="text-center text-white w-20">Ações</TableHead>
                           </TableRow>
-                        ))}
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-right font-medium">
-                            Subtotal:
-                          </TableCell>
-                          <TableCell className="text-center font-medium">
-                            R$ {calculateTotal(1).toFixed(2)}
-                          </TableCell>
-                          <TableCell></TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-                
-                {/* Tabela para Fornecedor 2 */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Fornecedor 2</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Table className="border">
-                      <TableHeader className="bg-blue-800 text-white">
-                        <TableRow>
-                          <TableHead className="text-white">Item</TableHead>
-                          <TableHead className="text-center text-white w-[100px]">Qtd</TableHead>
-                          <TableHead className="text-center text-white">Valor unitário</TableHead>
-                          <TableHead className="text-center text-white">Valor total</TableHead>
-                          <TableHead className="text-center text-white w-20">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {items.slice(0, 2).map((item) => (
-                          <TableRow key={`f2-${item.id}`}>
-                            <TableCell>{item.description}</TableCell>
-                            <TableCell className="text-center">
-                              <Input 
-                                type="number" 
-                                min="1"
-                                value={item.quantity}
-                                className="max-w-[80px] mx-auto text-center"
-                              />
+                        </TableHeader>
+                        <TableBody>
+                          {items
+                            .filter(item => item.supplierId === supplier.id)
+                            .map((item) => (
+                              <TableRow key={item.id}>
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell className="text-center">
+                                  <Input 
+                                    type="number" 
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => updateItemQuantity(item.id, Number(e.target.value))}
+                                    className="max-w-[80px] mx-auto text-center"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input 
+                                    type="number" 
+                                    step="0.01"
+                                    min="0"
+                                    value={item.price}
+                                    onChange={(e) => updateItemPrice(item.id, Number(e.target.value))}
+                                    className="max-w-[150px] mx-auto text-right"
+                                    placeholder="0,00"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  R$ {(item.price * item.quantity).toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm"
+                                    onClick={() => removeItem(item.id)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-right font-medium">
+                              Subtotal:
                             </TableCell>
-                            <TableCell>
-                              <Input 
-                                type="number" 
-                                step="0.01"
-                                min="0"
-                                className="max-w-[150px] mx-auto text-right"
-                                placeholder="0,00"
-                              />
+                            <TableCell className="text-center font-medium">
+                              R$ {calculateSupplierTotal(supplier.id).toFixed(2)}
                             </TableCell>
-                            <TableCell className="text-center">
-                              R$ {(item.price2 * item.quantity).toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                              >
-                                ×
-                              </Button>
-                            </TableCell>
+                            <TableCell></TableCell>
                           </TableRow>
-                        ))}
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-right font-medium">
-                            Subtotal:
-                          </TableCell>
-                          <TableCell className="text-center font-medium">
-                            R$ {calculateTotal(2).toFixed(2)}
-                          </TableCell>
-                          <TableCell></TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
+            )}
               
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setOpenQuoteDialog(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-green-500 hover:bg-green-600">
-                  Salvar Cotação
-                </Button>
-              </div>
-            </form>
-          </Form>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setOpenQuoteDialog(false)}>
+                Cancelar
+              </Button>
+              <Button 
+                type="button" 
+                className="bg-green-500 hover:bg-green-600"
+                onClick={handleSaveQuote}
+              >
+                Salvar Cotação
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -617,14 +633,31 @@ const Purchases = () => {
             <DialogTitle>Detalhes da Cotação</DialogTitle>
             <DialogDescription>
               {selectedQuote && (
-                <span>Cotação: {selectedQuote.ordem} | CC-3308 Reparo de moto</span>
+                <span>Cotação: {selectedQuote.ordem} | Solicitação: #{selectedQuote.solicitacao_id || 'N/A'}</span>
               )}
             </DialogDescription>
           </DialogHeader>
           
           <div className="py-4">
             <QuoteComparison 
-              suppliers={supplierQuotes}
+              suppliers={[
+                {
+                  id: 1,
+                  name: "Fornecedor A",
+                  items: [
+                    { id: 1, itemName: "Peça de reposição", quantity: 2, price: 120.00, supplierId: 1 },
+                    { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1 }
+                  ]
+                },
+                {
+                  id: 2,
+                  name: "Fornecedor B",
+                  items: [
+                    { id: 3, itemName: "Peça de reposição", quantity: 2, price: 135.00, supplierId: 2 },
+                    { id: 4, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2 }
+                  ]
+                }
+              ]}
               onFinish={handleQuoteComparisonFinish}
               onCancel={() => setOpenDetailsDialog(false)}
               viewOnly={true}
