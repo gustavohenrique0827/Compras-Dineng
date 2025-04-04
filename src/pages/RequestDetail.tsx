@@ -126,10 +126,11 @@ const RequestDetail: React.FC = () => {
     }
   ];
   
-  const { data: request, isLoading, error } = useQuery({
+  const { data: request, isLoading, error, refetch } = useQuery({
     queryKey: ['request', id],
     queryFn: () => fetchRequestById(Number(id)),
-    enabled: !!id
+    enabled: !!id,
+    retry: 1
   });
   
   const approveMutation = useMutation({
@@ -142,7 +143,7 @@ const RequestDetail: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['request', id] });
       toast.success("Solicitação aprovada com sucesso!");
-      navigate("/requests");
+      refetch();
     },
     onError: (error) => {
       console.error('Error approving request:', error);
@@ -161,7 +162,7 @@ const RequestDetail: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['request', id] });
       toast.success("Solicitação rejeitada com sucesso!");
-      navigate("/requests");
+      refetch();
     },
     onError: (error) => {
       console.error('Error rejecting request:', error);
@@ -182,22 +183,26 @@ const RequestDetail: React.FC = () => {
   };
 
   const handleFinalizePurchase = () => {
-    toast.success("Aquisição finalizada com sucesso");
-    
-    setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ['request', id] });
-      toast.success("Status atualizado: Finalizado");
-    }, 1000);
+    updateStatus(Number(id), "Finalizado")
+      .then(() => {
+        toast.success("Aquisição finalizada com sucesso");
+        queryClient.invalidateQueries({ queryKey: ['request', id] });
+        refetch();
+      })
+      .catch(error => {
+        console.error('Error finalizing purchase:', error);
+        toast.error("Erro ao finalizar aquisição");
+      });
   };
 
   const handleEditRequest = () => {
     if (request) {
       setEditData({
-        aplicacao: request.aplicacao,
-        motivo: request.motivo,
-        prioridade: request.prioridade,
-        prazo_entrega: request.prazo_entrega,
-        local_entrega: request.local_entrega
+        aplicacao: request.aplicacao || '',
+        motivo: request.motivo || '',
+        prioridade: request.prioridade || '',
+        prazo_entrega: request.prazo_entrega || '',
+        local_entrega: request.local_entrega || ''
       });
       setShowEditDialog(true);
     }
@@ -214,22 +219,57 @@ const RequestDetail: React.FC = () => {
   };
 
   const handleSaveEdit = () => {
-    toast.success("Solicitação atualizada com sucesso");
-    setShowEditDialog(false);
-    queryClient.invalidateQueries({ queryKey: ['request', id] });
+    const updateData = {
+      aplicacao: editData.aplicacao,
+      motivo: editData.motivo,
+      prioridade: editData.prioridade,
+      prazo_entrega: editData.prazo_entrega,
+      local_entrega: editData.local_entrega
+    };
+    
+    fetch(`http://localhost:5000/api/requests/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    })
+    .then(response => {
+      if (!response.ok) throw new Error('Erro ao atualizar solicitação');
+      return response.json();
+    })
+    .then(() => {
+      toast.success("Solicitação atualizada com sucesso");
+      setShowEditDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
+      refetch();
+    })
+    .catch(error => {
+      console.error('Error updating request:', error);
+      toast.error("Erro ao atualizar solicitação");
+    });
   };
 
   const handleSaveQuote = (selectedItems: any[]) => {
-    toast.success("Cotação finalizada com sucesso");
-    setShowQuoteDialog(false);
+    const quoteData = {
+      requestId: Number(id),
+      items: selectedItems,
+      status: 'Em Cotação'
+    };
     
-    // In a real app, you would save the selected items via an API call
-    // createNewQuote({ requestId: id, items: selectedItems });
-    
-    // Update the request status to "Approved for purchase"
-    // updateStatus(Number(id), "Aprovado para Compra");
-    
-    queryClient.invalidateQueries({ queryKey: ['request', id] });
+    createNewQuote(quoteData)
+      .then(() => {
+        toast.success("Cotação finalizada com sucesso");
+        setShowQuoteDialog(false);
+        
+        return updateStatus(Number(id), "Em Cotação");
+      })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['request', id] });
+        refetch();
+      })
+      .catch(error => {
+        console.error('Error creating quote:', error);
+        toast.error("Erro ao criar cotação");
+      });
   };
   
   const handleCancelQuote = () => {
@@ -274,7 +314,7 @@ const RequestDetail: React.FC = () => {
     );
   }
   
-  const daysRemaining = getDaysRemaining(request.data_limite);
+  const daysRemaining = request.prazo_entrega ? getDaysRemaining(request.prazo_entrega) : 0;
   
   return (
     <div className="min-h-screen bg-background">
@@ -295,10 +335,10 @@ const RequestDetail: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-2xl font-bold">Solicitação #{request?.id}</h2>
-                    <StatusBadge type="status" value={request?.status} />
+                    <StatusBadge type="status" value={request?.status || 'Desconhecido'} />
                   </div>
                   <p className="text-muted-foreground">
-                    Criada em {request && formatDate(request.data_solicitacao)}
+                    Criada em {request && formatDate(request.data_solicitacao || '')}
                   </p>
                 </div>
               </div>

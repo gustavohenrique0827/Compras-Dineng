@@ -95,6 +95,55 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Atualizar detalhes da solicitação
+router.put('/:id', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Verificar se a solicitação existe
+    const [existingRequest] = await connection.query(
+      'SELECT * FROM solicitacoes WHERE id = ?',
+      [id]
+    );
+    
+    if (existingRequest.length === 0) {
+      return res.status(404).json({ message: 'Solicitação não encontrada' });
+    }
+    
+    // Atualizar dados da solicitação
+    await connection.query(
+      `UPDATE solicitacoes SET 
+       aplicacao = ?, 
+       motivo = ?, 
+       prioridade = ?, 
+       prazo_entrega = ?, 
+       local_entrega = ? 
+       WHERE id = ?`,
+      [
+        updateData.aplicacao || existingRequest[0].aplicacao,
+        updateData.motivo || existingRequest[0].motivo,
+        updateData.prioridade || existingRequest[0].prioridade,
+        updateData.prazo_entrega || existingRequest[0].prazo_entrega,
+        updateData.local_entrega || existingRequest[0].local_entrega,
+        id
+      ]
+    );
+    
+    await connection.commit();
+    res.json({ success: true, message: 'Solicitação atualizada com sucesso' });
+  } catch (error) {
+    await connection.rollback();
+    console.error(`Erro ao atualizar solicitação ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Erro ao atualizar solicitação', error: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
 // Atualizar status da solicitação
 router.patch('/:id/status', async (req, res) => {
   const connection = await pool.getConnection();
@@ -118,10 +167,10 @@ router.patch('/:id/status', async (req, res) => {
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
-          approvalData.etapa,
-          approvalData.status,
-          approvalData.aprovado_por,
-          approvalData.nivel_aprovacao,
+          approvalData.etapa || 'Solicitação',
+          approvalData.status || status,
+          approvalData.aprovado_por || 'Sistema',
+          approvalData.nivel_aprovacao || 1,  // Usando valor numérico como padrão
           approvalData.motivo_rejeicao || null,
           new Date().toISOString().split('T')[0]
         ]
