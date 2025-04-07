@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,7 +43,8 @@ const Settings = () => {
   const isMobile = useIsMobile();
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [costCenterDialogOpen, setCostCenterDialogOpen] = useState(false);
-  const isAdmin = hasAccess(['admin', 'gerente']);
+  // Replace 'admin' and 'gerente' with appropriate access levels from the defined enum
+  const isAdmin = hasAccess(['verde', 'marrom']); // Assuming higher levels have admin privileges
   
   // Usuários
   const { data: users = [], isLoading } = useQuery({
@@ -76,7 +78,7 @@ const Settings = () => {
       nome: '',
       email: '',
       cargo: '',
-      nivel_acesso: 'solicitante',
+      nivel_acesso: 'amarelo', // Changed from 'solicitante' to 'amarelo'
       departamento: '',
       ativo: true,
       senha: ''
