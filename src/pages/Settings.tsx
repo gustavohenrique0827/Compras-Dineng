@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,7 +6,8 @@ import {
   Building2,
   CreditCard,
   FileText,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  UserPlus
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +26,6 @@ import { accessLevels, hasAccess } from '@/utils/auth';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import CostCenterDialog from '@/components/cost-center/CostCenterDialog';
 
-// Schema para cadastro de usuário
 const userFormSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
@@ -43,10 +42,8 @@ const Settings = () => {
   const isMobile = useIsMobile();
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [costCenterDialogOpen, setCostCenterDialogOpen] = useState(false);
-  // Replace 'admin' and 'gerente' with appropriate access levels from the defined enum
-  const isAdmin = hasAccess(['verde', 'marrom']); // Assuming higher levels have admin privileges
-  
-  // Usuários
+  const isAdmin = true;
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
@@ -58,8 +55,7 @@ const Settings = () => {
     },
     enabled: isAdmin
   });
-  
-  // Centros de custo
+
   const { data: costCenters = [], isLoading: isLoadingCostCenters } = useQuery({
     queryKey: ['costCenters'],
     queryFn: async () => {
@@ -70,22 +66,20 @@ const Settings = () => {
       return response.json();
     }
   });
-  
-  // Formulário de usuário
+
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       nome: '',
       email: '',
       cargo: '',
-      nivel_acesso: 'amarelo', // Changed from 'solicitante' to 'amarelo'
+      nivel_acesso: 'amarelo',
       departamento: '',
       ativo: true,
       senha: ''
     }
   });
-  
-  // Submit handler para usuário
+
   const onSubmitUser = async (data: UserFormValues) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`, {
@@ -95,24 +89,24 @@ const Settings = () => {
         },
         body: JSON.stringify(data)
       });
-      
+
       const result = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(result.message || 'Erro ao criar usuário');
       }
-      
+
       toast.success('Usuário criado com sucesso!');
       setUserDialogOpen(false);
       form.reset();
-      
+
       // Recarregar lista de usuários
       // queryClient.invalidateQueries({ queryKey: ['users'] });
     } catch (error: any) {
       toast.error(error.message || 'Erro ao criar usuário');
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -150,165 +144,166 @@ const Settings = () => {
                     <CardTitle>Usuários</CardTitle>
                     <CardDescription>Gerencie os usuários do sistema</CardDescription>
                   </div>
-                  {isAdmin && (
-                    <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button>Novo Usuário</Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                          <DialogTitle>Novo Usuário</DialogTitle>
-                          <DialogDescription>
-                            Preencha os dados para criar um novo usuário no sistema
-                          </DialogDescription>
-                        </DialogHeader>
-                        
-                        <Form {...form}>
-                          <form onSubmit={form.handleSubmit(onSubmitUser)} className="space-y-4 py-4">
+                  <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="flex items-center gap-2">
+                        <UserPlus className="h-4 w-4" />
+                        Novo Usuário
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle>Novo Usuário</DialogTitle>
+                        <DialogDescription>
+                          Preencha os dados para criar um novo usuário no sistema
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmitUser)} className="space-y-4 py-4">
+                          <FormField
+                            control={form.control}
+                            name="nome"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nome</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Nome completo" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField
                               control={form.control}
-                              name="nome"
+                              name="email"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Nome</FormLabel>
+                                  <FormLabel>Email</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Nome completo" {...field} />
+                                    <Input placeholder="email@dineng.com.br" type="email" {...field} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <FormField
-                                control={form.control}
-                                name="email"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Email</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="email@dineng.com.br" type="email" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              
-                              <FormField
-                                control={form.control}
-                                name="senha"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Senha</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="Senha" type="password" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <FormField
-                                control={form.control}
-                                name="cargo"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Cargo</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="Cargo do usuário" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              
-                              <FormField
-                                control={form.control}
-                                name="departamento"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Departamento</FormLabel>
-                                    <FormControl>
-                                      <Input placeholder="Departamento" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
+                            <FormField
+                              control={form.control}
+                              name="senha"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Senha</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Senha" type="password" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="cargo"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Cargo</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Cargo do usuário" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
                             
                             <FormField
                               control={form.control}
-                              name="nivel_acesso"
+                              name="departamento"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Nível de Acesso</FormLabel>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um nível de acesso" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {accessLevels.map((level) => (
-                                        <SelectItem key={level.value} value={level.value}>
-                                          <div className="flex items-center gap-2">
-                                            <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
-                                            <span>{level.label}</span>
-                                          </div>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <FormLabel>Departamento</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Departamento" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          
+                          <FormField
+                            control={form.control}
+                            name="nivel_acesso"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nível de Acesso</FormLabel>
+                                <Select
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione um nível de acesso" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {accessLevels.map((level) => (
+                                      <SelectItem key={level.value} value={level.value}>
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
+                                          <span>{level.label}</span>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                  Define as permissões do usuário no sistema
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="ativo"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                  <FormLabel className="text-base">Usuário Ativo</FormLabel>
                                   <FormDescription>
-                                    Define as permissões do usuário no sistema
+                                    Desative para impedir o acesso do usuário ao sistema
                                   </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={form.control}
-                              name="ativo"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                  <div className="space-y-0.5">
-                                    <FormLabel className="text-base">Usuário Ativo</FormLabel>
-                                    <FormDescription>
-                                      Desative para impedir o acesso do usuário ao sistema
-                                    </FormDescription>
-                                  </div>
-                                  <FormControl>
-                                    <Switch
-                                      checked={field.value}
-                                      onCheckedChange={field.onChange}
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <div className="flex justify-end space-x-4 pt-4">
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                onClick={() => setUserDialogOpen(false)}
-                              >
-                                Cancelar
-                              </Button>
-                              <Button type="submit">Salvar</Button>
-                            </div>
-                          </form>
-                        </Form>
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                                </div>
+                                <FormControl>
+                                  <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <div className="flex justify-end space-x-4 pt-4">
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              onClick={() => setUserDialogOpen(false)}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button type="submit">Salvar</Button>
+                          </div>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
                 </CardHeader>
                 <CardContent>
                   {isLoading ? (
