@@ -54,11 +54,11 @@ const fetchCostCenters = async (): Promise<CentroCusto[]> => {
 
 // Mock de dados para uso offline ou fallback
 const mockCostCenters: CentroCusto[] = [
-  { id: 1, codigo: 'CC001', descricao: 'Administrativo' },
-  { id: 2, codigo: 'CC002', descricao: 'Produção' },
-  { id: 3, codigo: 'CC003', descricao: 'Vendas' },
-  { id: 4, codigo: 'CC004', descricao: 'Financeiro' },
-  { id: 5, codigo: 'CC005', descricao: 'RH' },
+  { id: 1, codigo: 'CC001', descricao: 'Administrativo', ativo: true },
+  { id: 2, codigo: 'CC002', descricao: 'Produção', ativo: true },
+  { id: 3, codigo: 'CC003', descricao: 'Vendas', ativo: true },
+  { id: 4, codigo: 'CC004', descricao: 'Financeiro', ativo: true },
+  { id: 5, codigo: 'CC005', descricao: 'RH', ativo: true },
 ];
 
 const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange }) => {
