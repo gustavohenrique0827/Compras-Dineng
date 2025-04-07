@@ -51,12 +51,12 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
-// Verificar se o usuário tem determinado nível de acesso
-export const hasAccess = (requiredLevels: Array<User['nivel_acesso']>): boolean => {
+// Verificar se o usuário tem o cargo necessário para ter acesso
+export const hasAccess = (requiredCargos: string[]): boolean => {
   const user = getCurrentUser();
   if (!user) return false;
   
-  return requiredLevels.includes(user.nivel_acesso);
+  return requiredCargos.includes(user.cargo);
 };
 
 // Fazer logout
@@ -70,13 +70,22 @@ export const logout = (): void => {
   toast.success('Logout realizado com sucesso!');
 };
 
-// Níveis de acesso e suas descrições
+// Cargos e seus níveis de acesso correspondentes
 export const accessLevels = [
-  { value: 'amarelo', label: 'Levantador / Encarregado', description: 'Nível Amarelo - Aprovações básicas', color: 'bg-yellow-500' },
-  { value: 'azul', label: 'Supervisão / Segurança', description: 'Nível Azul - Aprovações intermediárias', color: 'bg-blue-500' },
-  { value: 'marrom', label: 'Coordenação', description: 'Nível Marrom - Aprovações superiores', color: 'bg-amber-800' },
-  { value: 'verde', label: 'Gerência / Diretoria', description: 'Nível Verde - Aprovações finais', color: 'bg-green-500' }
+  { value: 'Levantador', label: 'Levantador', description: 'Nível Amarelo - Aprovações básicas', color: 'bg-yellow-500', nivel: 'amarelo' },
+  { value: 'Encarregado', label: 'Encarregado', description: 'Nível Amarelo - Aprovações básicas', color: 'bg-yellow-500', nivel: 'amarelo' },
+  { value: 'Supervisão', label: 'Supervisão', description: 'Nível Azul - Aprovações intermediárias', color: 'bg-blue-500', nivel: 'azul' },
+  { value: 'Segurança', label: 'Segurança', description: 'Nível Azul - Aprovações intermediárias', color: 'bg-blue-500', nivel: 'azul' },
+  { value: 'Coordenação', label: 'Coordenação', description: 'Nível Marrom - Aprovações superiores', color: 'bg-amber-800', nivel: 'marrom' },
+  { value: 'Gerência', label: 'Gerência', description: 'Nível Verde - Aprovações finais', color: 'bg-green-500', nivel: 'verde' },
+  { value: 'Diretoria', label: 'Diretoria', description: 'Nível Verde - Aprovações finais', color: 'bg-green-500', nivel: 'verde' }
 ];
+
+// Obter nível de acesso com base no cargo
+export const getNivelAcessoByCargo = (cargo: string): string => {
+  const cargoInfo = accessLevels.find(level => level.value === cargo);
+  return cargoInfo ? cargoInfo.nivel : 'amarelo'; // Default para o nível mais baixo
+};
 
 // Cores dos níveis de autorização
 export const authorizationColors = {

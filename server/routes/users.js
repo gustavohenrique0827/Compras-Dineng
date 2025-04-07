@@ -3,6 +3,24 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
+// Mapeamento de cargos para níveis de acesso
+const cargoToNivelAcesso = {
+  'Levantador': 'amarelo',
+  'Encarregado': 'amarelo',
+  'Supervisão': 'azul',
+  'Segurança': 'azul',
+  'Coordenação': 'marrom',
+  'Gerência': 'verde',
+  'Diretoria': 'verde',
+  // Fallback para cargos não mapeados
+  'default': 'amarelo'
+};
+
+// Obter o nível de acesso com base no cargo
+const getNivelAcessoByCargo = (cargo) => {
+  return cargoToNivelAcesso[cargo] || cargoToNivelAcesso.default;
+};
+
 // Obter todos os usuários
 router.get('/', async (req, res) => {
   try {
@@ -41,10 +59,15 @@ router.get('/:id', async (req, res) => {
 
 // Criar novo usuário
 router.post('/', async (req, res) => {
-  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
+  let { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
   
-  if (!nome || !email || !cargo || !nivel_acesso || !senha || !matricula) {
+  if (!nome || !email || !cargo || !senha || !matricula) {
     return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
+  }
+  
+  // Se nivel_acesso não foi fornecido, determinar pelo cargo
+  if (!nivel_acesso) {
+    nivel_acesso = getNivelAcessoByCargo(cargo);
   }
   
   try {
@@ -70,11 +93,16 @@ router.post('/', async (req, res) => {
 
 // Atualizar usuário
 router.put('/:id', async (req, res) => {
-  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
+  let { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
   const id = req.params.id;
   
-  if (!nome || !email || !cargo || !nivel_acesso || !matricula) {
+  if (!nome || !email || !cargo || !matricula) {
     return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
+  }
+  
+  // Se nivel_acesso não foi fornecido, determinar pelo cargo
+  if (!nivel_acesso) {
+    nivel_acesso = getNivelAcessoByCargo(cargo);
   }
   
   try {

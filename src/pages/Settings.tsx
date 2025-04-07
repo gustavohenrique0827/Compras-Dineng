@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,7 +22,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { accessLevels, hasAccess } from '@/utils/auth';
+import { accessLevels, getNivelAcessoByCargo } from '@/utils/auth';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import CostCenterDialog from '@/components/cost-center/CostCenterDialog';
 
@@ -31,7 +30,6 @@ const userFormSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   cargo: z.string().min(3, "Cargo deve ter pelo menos 3 caracteres"),
-  nivel_acesso: z.enum(["amarelo", "azul", "marrom", "verde"]),
   departamento: z.string().optional(),
   matricula: z.string().min(1, "Matrícula é obrigatória"),
   ativo: z.boolean().default(true),
@@ -101,7 +99,6 @@ const Settings = () => {
       nome: '',
       email: '',
       cargo: '',
-      nivel_acesso: 'amarelo',
       departamento: '',
       matricula: '',
       ativo: true,
@@ -111,12 +108,17 @@ const Settings = () => {
 
   const onSubmitUser = async (data: UserFormValues) => {
     try {
+      const submitData = {
+        ...data,
+        nivel_acesso: getNivelAcessoByCargo(data.cargo)
+      };
+
       const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(submitData)
       });
 
       if (!response.ok) {
@@ -265,8 +267,28 @@ const Settings = () => {
                                 <FormItem>
                                   <FormLabel>Cargo</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Cargo do usuário" {...field} />
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      defaultValue={field.value}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um cargo" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {accessLevels.map((level) => (
+                                          <SelectItem key={level.value} value={level.value}>
+                                            <div className="flex items-center gap-2">
+                                              <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
+                                              <span>{level.label}</span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </FormControl>
+                                  <FormDescription>
+                                    O nível de acesso será definido automaticamente com base no cargo
+                                  </FormDescription>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -286,40 +308,6 @@ const Settings = () => {
                               )}
                             />
                           </div>
-                          
-                          <FormField
-                            control={form.control}
-                            name="nivel_acesso"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Nível de Acesso</FormLabel>
-                                <Select
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Selecione um nível de acesso" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {accessLevels.map((level) => (
-                                      <SelectItem key={level.value} value={level.value}>
-                                        <div className="flex items-center gap-2">
-                                          <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
-                                          <span>{level.label}</span>
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormDescription>
-                                  Define as permissões do usuário no sistema
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
                           
                           <FormField
                             control={form.control}
