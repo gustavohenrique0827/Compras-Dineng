@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,7 +30,7 @@ const userFormSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
   cargo: z.string().min(3, "Cargo deve ter pelo menos 3 caracteres"),
-  nivel_acesso: z.enum(["admin", "gerente", "supervisor", "comprador", "solicitante"]),
+  nivel_acesso: z.enum(["amarelo", "azul", "marrom", "verde"]),
   departamento: z.string().optional(),
   ativo: z.boolean().default(true),
   senha: z.string().min(6, "Senha deve ter pelo menos 6 caracteres")
@@ -256,7 +255,10 @@ const Settings = () => {
                                     <SelectContent>
                                       {accessLevels.map((level) => (
                                         <SelectItem key={level.value} value={level.value}>
-                                          {level.label} - {level.description}
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
+                                            <span>{level.label}</span>
+                                          </div>
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
@@ -362,8 +364,16 @@ const Settings = () => {
                                   <div className="text-sm text-gray-900">{user.cargo}</div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    {accessLevels.find(level => level.value === user.nivel_acesso)?.label || user.nivel_acesso}
+                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1">
+                                    {(() => {
+                                      const level = accessLevels.find(level => level.value === user.nivel_acesso);
+                                      return (
+                                        <>
+                                          <div className={`w-2 h-2 rounded-full ${level ? level.color : 'bg-gray-400'}`}></div>
+                                          <span>{level ? level.label : user.nivel_acesso}</span>
+                                        </>
+                                      );
+                                    })()}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">

@@ -13,16 +13,46 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*', // Permitir qualquer origem em desenvolvimento
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  credentials: true
+  origin: function(origin, callback) {
+    // Permitindo qualquer origem em desenvolvimento
+    callback(null, true);
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 
 // Adicionando log para depuração
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  const now = new Date();
+  const formattedTime = now.toISOString();
+  console.log(`[${formattedTime}] ${req.method} ${req.url} - IP: ${req.ip}`);
+  
+  // Logar corpo da requisição para métodos não GET
+  if (req.method !== 'GET' && req.body) {
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+  }
+  
+  // Capturar informações de resposta
+  const originalSend = res.send;
+  res.send = function(body) {
+    console.log(`[${formattedTime}] Response status: ${res.statusCode}`);
+    return originalSend.call(this, body);
+  };
+  
   next();
+});
+
+// Middleware para tratamento de erros
+app.use((err, req, res, next) => {
+  console.error(`[ERROR] ${req.method} ${req.url} - ${err.stack}`);
+  res.status(500).json({
+    success: false,
+    message: 'Erro interno no servidor',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 // Teste de conexão ao iniciar o servidor
@@ -47,8 +77,33 @@ app.get('/', (req, res) => {
   res.send('API do SISDINENG está rodando!');
 });
 
+// Status da API
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'online',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Iniciar o servidor
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Acesse a API em http://localhost:${PORT}`);
+  console.log(`Verificando conexão com banco de dados...`);
   testConnection();
+});
+
+// Tratamento para encerramento gracioso do servidor
+process.on('SIGTERM', () => {
+  console.log('Sinal SIGTERM recebido. Encerrando o servidor...');
+  pool.end();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('Sinal SIGINT recebido. Encerrando o servidor...');
+  pool.end();
+  process.exit(0);
 });

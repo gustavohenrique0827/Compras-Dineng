@@ -7,7 +7,7 @@ export interface User {
   nome: string;
   email: string;
   cargo: string;
-  nivel_acesso: 'admin' | 'gerente' | 'supervisor' | 'comprador' | 'solicitante';
+  nivel_acesso: 'amarelo' | 'azul' | 'marrom' | 'verde';
   ativo: boolean;
   departamento?: string;
 }
@@ -71,11 +71,10 @@ export const logout = (): void => {
 
 // Níveis de acesso e suas descrições
 export const accessLevels = [
-  { value: 'admin', label: 'Administrador', description: 'Acesso total ao sistema' },
-  { value: 'gerente', label: 'Gerente', description: 'Aprovação final e gestão de usuários' },
-  { value: 'supervisor', label: 'Supervisor', description: 'Aprovação intermediária e cotações' },
-  { value: 'comprador', label: 'Comprador', description: 'Criar cotações e negociar com fornecedores' },
-  { value: 'solicitante', label: 'Solicitante', description: 'Criar solicitações de compra' }
+  { value: 'amarelo', label: 'Levantador / Encarregado', description: 'Nível Amarelo - Aprovações básicas', color: 'bg-yellow-500' },
+  { value: 'azul', label: 'Supervisão / Segurança', description: 'Nível Azul - Aprovações intermediárias', color: 'bg-blue-500' },
+  { value: 'marrom', label: 'Coordenação', description: 'Nível Marrom - Aprovações superiores', color: 'bg-amber-800' },
+  { value: 'verde', label: 'Gerência / Diretoria', description: 'Nível Verde - Aprovações finais', color: 'bg-green-500' }
 ];
 
 // Cores dos níveis de autorização
