@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -48,11 +49,24 @@ const Settings = () => {
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`);
-      if (!response.ok) {
-        throw new Error('Erro ao carregar usuários');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`);
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status} ${response.statusText}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('API did not return JSON');
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+        // Return empty array as fallback
+        return [];
       }
-      return response.json();
     },
     enabled: isAdmin
   });
@@ -60,11 +74,24 @@ const Settings = () => {
   const { data: costCenters = [], isLoading: isLoadingCostCenters } = useQuery({
     queryKey: ['costCenters'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/cost-centers`);
-      if (!response.ok) {
-        throw new Error('Erro ao carregar centros de custo');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/cost-centers`);
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status} ${response.statusText}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('API did not return JSON');
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Failed to fetch cost centers:', error);
+        // Return empty array as fallback
+        return [];
       }
-      return response.json();
     }
   });
 
@@ -92,12 +119,21 @@ const Settings = () => {
         body: JSON.stringify(data)
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.message || 'Erro ao criar usuário');
+        const contentType = response.headers.get('content-type');
+        let errorMessage = 'Erro ao criar usuário';
+        
+        if (contentType && contentType.includes('application/json')) {
+          const result = await response.json();
+          errorMessage = result.message || errorMessage;
+        } else {
+          errorMessage = `Erro ${response.status}: ${response.statusText}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
+      const result = await response.json();
       toast.success('Usuário criado com sucesso!');
       setUserDialogOpen(false);
       form.reset();

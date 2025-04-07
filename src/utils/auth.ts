@@ -85,3 +85,18 @@ export const authorizationColors = {
   'Marrom': 'bg-amber-800',
   'Verde': 'bg-green-500'
 };
+
+// Função auxiliar para verificar se uma resposta é JSON válido
+export const isValidJSON = async (response: Response): Promise<boolean> => {
+  try {
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return false;
+    }
+    
+    await response.json();
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
