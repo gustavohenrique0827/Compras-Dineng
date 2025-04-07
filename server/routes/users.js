@@ -7,7 +7,7 @@ const { pool } = require('../db');
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento
+      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, matricula
       FROM usuarios
       ORDER BY nome
     `);
@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento
+      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, matricula
       FROM usuarios
       WHERE id = ?
     `, [req.params.id]);
@@ -41,9 +41,9 @@ router.get('/:id', async (req, res) => {
 
 // Criar novo usuário
 router.post('/', async (req, res) => {
-  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha } = req.body;
+  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
   
-  if (!nome || !email || !cargo || !nivel_acesso || !senha) {
+  if (!nome || !email || !cargo || !nivel_acesso || !senha || !matricula) {
     return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
   }
   
@@ -57,9 +57,9 @@ router.post('/', async (req, res) => {
     
     // Inserir novo usuário
     const [result] = await pool.query(`
-      INSERT INTO usuarios (nome, email, cargo, nivel_acesso, ativo, departamento, senha)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, senha]);
+      INSERT INTO usuarios (nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, senha, matricula]);
     
     res.status(201).json({ success: true, id: result.insertId });
   } catch (error) {
@@ -70,10 +70,10 @@ router.post('/', async (req, res) => {
 
 // Atualizar usuário
 router.put('/:id', async (req, res) => {
-  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha } = req.body;
+  const { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
   const id = req.params.id;
   
-  if (!nome || !email || !cargo || !nivel_acesso) {
+  if (!nome || !email || !cargo || !nivel_acesso || !matricula) {
     return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
   }
   
@@ -87,20 +87,20 @@ router.put('/:id', async (req, res) => {
     
     let query = `
       UPDATE usuarios 
-      SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?
+      SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?, matricula = ?
       WHERE id = ?
     `;
     
-    let params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, id];
+    let params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, matricula, id];
     
     // Se senha foi fornecida, atualize-a também
     if (senha) {
       query = `
         UPDATE usuarios 
-        SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?, senha = ?
+        SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?, matricula = ?, senha = ?
         WHERE id = ?
       `;
-      params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, senha, id];
+      params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, matricula, senha, id];
     }
     
     // Atualizar usuário
@@ -181,7 +181,7 @@ router.post('/login', async (req, res) => {
   
   try {
     const [users] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento
+      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, matricula
       FROM usuarios 
       WHERE email = ? AND senha = ? AND ativo = 1
     `, [email, senha]);
@@ -200,7 +200,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         cargo: user.cargo,
         nivel_acesso: user.nivel_acesso,
-        departamento: user.departamento
+        departamento: user.departamento,
+        matricula: user.matricula
       }
     });
   } catch (error) {

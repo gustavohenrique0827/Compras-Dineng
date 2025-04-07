@@ -10,6 +10,7 @@ export interface User {
   nivel_acesso: 'amarelo' | 'azul' | 'marrom' | 'verde';
   ativo: boolean;
   departamento?: string;
+  matricula?: string;
 }
 
 export interface NivelAutorizacao {

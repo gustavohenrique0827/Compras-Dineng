@@ -32,6 +32,7 @@ const userFormSchema = z.object({
   cargo: z.string().min(3, "Cargo deve ter pelo menos 3 caracteres"),
   nivel_acesso: z.enum(["amarelo", "azul", "marrom", "verde"]),
   departamento: z.string().optional(),
+  matricula: z.string().min(1, "Matrícula é obrigatória"),
   ativo: z.boolean().default(true),
   senha: z.string().min(6, "Senha deve ter pelo menos 6 caracteres")
 });
@@ -75,6 +76,7 @@ const Settings = () => {
       cargo: '',
       nivel_acesso: 'amarelo',
       departamento: '',
+      matricula: '',
       ativo: true,
       senha: ''
     }
@@ -192,18 +194,32 @@ const Settings = () => {
                             
                             <FormField
                               control={form.control}
-                              name="senha"
+                              name="matricula"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Senha</FormLabel>
+                                  <FormLabel>Matrícula</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Senha" type="password" {...field} />
+                                    <Input placeholder="Número de matrícula" {...field} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
                           </div>
+                          
+                          <FormField
+                            control={form.control}
+                            name="senha"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Senha</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Senha" type="password" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField
