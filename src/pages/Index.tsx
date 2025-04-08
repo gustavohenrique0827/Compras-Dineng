@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -30,7 +29,6 @@ interface Request {
   id: number;
   nome_solicitante: string;
   requesterName: string;
-  application: string;
   costCenter: string;
   centro_custo: string;
   application: string;
@@ -74,7 +72,6 @@ const Index: React.FC = () => {
   const [requests, setRequests] = useState<Request[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Fetch requests from API
   const { data: fetchedRequests, isLoading: requestsLoading } = useQuery({
     queryKey: ['requests'],
     queryFn: async () => {
@@ -92,7 +89,6 @@ const Index: React.FC = () => {
       } catch (error) {
         console.error('Erro ao buscar solicitações:', error);
         toast.error('Não foi possível carregar as solicitações. Usando dados simulados.');
-        // Return mockData as fallback
         return mockRequests;
       }
     }
@@ -105,10 +101,8 @@ const Index: React.FC = () => {
     }
   }, [fetchedRequests]);
   
-  // Get recent requests for the dashboard
   const recentRequests = requests.length > 0 ? requests.slice(0, 5) : mockRequests.slice(0, 5);
   
-  // Organize requests by status
   const pendingRequests = requests.length > 0
     ? requests.filter(req => 
         req.status === 'Solicitado' || req.status === 'Em Cotação'
