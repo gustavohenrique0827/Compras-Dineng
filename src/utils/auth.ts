@@ -11,6 +11,16 @@ export interface User {
   ativo: boolean;
   departamento?: string;
   matricula?: string;
+  permissoes?: {
+    compra_impeditivos: number;
+    compra_consumo: number;
+    compra_estoque: number;
+    compra_locais: number;
+    compra_investimentos: number;
+    compra_alojamentos: number;
+    compra_supermercados: number;
+    aprova_solicitacao: number;
+  };
 }
 
 export interface NivelAutorizacao {
@@ -72,18 +82,22 @@ export const logout = (): void => {
 
 // Cargos e seus níveis de acesso correspondentes
 export const accessLevels = [
-  { value: 'Levantador', label: 'Levantador', description: 'Nível Amarelo - Aprovações básicas', color: 'bg-yellow-500', nivel: 'amarelo' },
-  { value: 'Encarregado', label: 'Encarregado', description: 'Nível Amarelo - Aprovações básicas', color: 'bg-yellow-500', nivel: 'amarelo' },
-  { value: 'Supervisão', label: 'Supervisão', description: 'Nível Azul - Aprovações intermediárias', color: 'bg-blue-500', nivel: 'azul' },
-  { value: 'Segurança', label: 'Segurança', description: 'Nível Azul - Aprovações intermediárias', color: 'bg-blue-500', nivel: 'azul' },
-  { value: 'Coordenação', label: 'Coordenação', description: 'Nível Marrom - Aprovações superiores', color: 'bg-amber-800', nivel: 'marrom' },
-  { value: 'Gerência', label: 'Gerência', description: 'Nível Verde - Aprovações finais', color: 'bg-green-500', nivel: 'verde' },
-  { value: 'Diretoria', label: 'Diretoria', description: 'Nível Verde - Aprovações finais', color: 'bg-green-500', nivel: 'verde' }
+  { value: 'Administrador', label: 'Administrador', description: 'Nível Verde - Acesso total ao sistema', color: 'bg-green-500', nivel: 'verde' },
+  { value: 'Gerente', label: 'Gerente', description: 'Nível Azul - Aprovações de alto nível', color: 'bg-blue-500', nivel: 'azul' },
+  { value: 'Supervisor', label: 'Supervisor', description: 'Nível Marrom - Aprovações intermediárias', color: 'bg-amber-800', nivel: 'marrom' },
+  { value: 'Comprador', label: 'Comprador', description: 'Nível Amarelo - Acesso básico', color: 'bg-yellow-500', nivel: 'amarelo' },
+  { value: 'Levantador', label: 'Levantador', description: 'Nível Amarelo - Acesso básico', color: 'bg-yellow-500', nivel: 'amarelo' },
+  { value: 'Encarregado', label: 'Encarregado', description: 'Nível Amarelo - Acesso básico', color: 'bg-yellow-500', nivel: 'amarelo' },
+  { value: 'Segurança', label: 'Segurança', description: 'Nível Azul - Aprovações de alto nível', color: 'bg-blue-500', nivel: 'azul' },
+  { value: 'Coordenação', label: 'Coordenação', description: 'Nível Marrom - Aprovações intermediárias', color: 'bg-amber-800', nivel: 'marrom' },
+  { value: 'Diretoria', label: 'Diretoria', description: 'Nível Verde - Acesso total ao sistema', color: 'bg-green-500', nivel: 'verde' }
 ];
 
 // Obter nível de acesso com base no cargo
 export const getNivelAcessoByCargo = (cargo: string): string => {
-  const cargoInfo = accessLevels.find(level => level.value === cargo);
+  const cargoInfo = accessLevels.find(level => 
+    level.value.toLowerCase() === cargo.toLowerCase()
+  );
   return cargoInfo ? cargoInfo.nivel : 'amarelo'; // Default para o nível mais baixo
 };
 

@@ -1,189 +1,172 @@
+
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
-// Mapeamento de cargos para níveis de acesso
-const cargoToNivelAcesso = {
-  'Levantador': 'amarelo',
-  'Encarregado': 'amarelo',
-  'Supervisão': 'azul',
-  'Segurança': 'azul',
-  'Coordenação': 'marrom',
-  'Gerência': 'verde',
-  'Diretoria': 'verde',
-  // Fallback para cargos não mapeados
-  'default': 'amarelo'
-};
-
-// Obter o nível de acesso com base no cargo
+// Função para obter nível de acesso baseado no cargo
 const getNivelAcessoByCargo = (cargo) => {
-  return cargoToNivelAcesso[cargo] || cargoToNivelAcesso.default;
+  const cargoLower = cargo.toLowerCase();
+  
+  // Mapeamento de cargos para níveis de acesso
+  const niveisAcesso = {
+    'administrador': {
+      nivel: 'verde',
+      descricao: 'Administrador',
+      permissoes: {
+        compra_impeditivos: 1,
+        compra_consumo: 1,
+        compra_estoque: 1,
+        compra_locais: 1,
+        compra_investimentos: 1,
+        compra_alojamentos: 1,
+        compra_supermercados: 1,
+        aprova_solicitacao: 1
+      }
+    },
+    'gerente': {
+      nivel: 'azul',
+      descricao: 'Gerente',
+      permissoes: {
+        compra_impeditivos: 1,
+        compra_consumo: 1,
+        compra_estoque: 1,
+        compra_locais: 1,
+        compra_investimentos: 1,
+        compra_alojamentos: 0,
+        compra_supermercados: 0,
+        aprova_solicitacao: 1
+      }
+    },
+    'supervisor': {
+      nivel: 'marrom',
+      descricao: 'Supervisor',
+      permissoes: {
+        compra_impeditivos: 1,
+        compra_consumo: 1,
+        compra_estoque: 1,
+        compra_locais: 0,
+        compra_investimentos: 0,
+        compra_alojamentos: 0,
+        compra_supermercados: 0,
+        aprova_solicitacao: 1
+      }
+    },
+    'comprador': {
+      nivel: 'amarelo',
+      descricao: 'Comprador',
+      permissoes: {
+        compra_impeditivos: 1,
+        compra_consumo: 1,
+        compra_estoque: 1,
+        compra_locais: 0,
+        compra_investimentos: 0,
+        compra_alojamentos: 0,
+        compra_supermercados: 0,
+        aprova_solicitacao: 0
+      }
+    }
+  };
+
+  // Retorna o nível de acesso correspondente ou null se não encontrar
+  return niveisAcesso[cargoLower] || null;
 };
 
-// Obter todos os usuários
+// GET TODOS FUNCIONÁRIOS
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, matricula
-      FROM usuarios
-      ORDER BY nome
+      SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
+             n.descricao AS nivel_acesso, n.permissoes
+      FROM tb_funcionarios f LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
     `);
-    
     res.json(rows);
-  } catch (error) {
-    console.error('Erro ao buscar usuários:', error);
-    res.status(500).json({ success: false, message: 'Erro ao buscar usuários' });
+  } catch (err) {
+    console.error('Erro ao buscar funcionários:', err);
+    res.status(500).json({ message: 'Erro ao buscar funcionários' });
   }
 });
 
-// Obter usuário por ID
+// GET FUNCIONÁRIO POR ID
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, matricula
-      FROM usuarios
-      WHERE id = ?
+      SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
+             n.descricao AS nivel_acesso, n.permissoes
+      FROM tb_funcionarios f LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
+      WHERE f.id = ?
     `, [req.params.id]);
-    
+
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+      return res.status(404).json({ message: 'Funcionário não encontrado' });
     }
-    
+
     res.json(rows[0]);
-  } catch (error) {
-    console.error('Erro ao buscar usuário:', error);
-    res.status(500).json({ success: false, message: 'Erro ao buscar usuário' });
+  } catch (err) {
+    console.error('Erro ao buscar funcionário:', err);
+    res.status(500).json({ message: 'Erro ao buscar funcionário' });
   }
 });
 
-// Criar novo usuário
-router.post('/', async (req, res) => {
-  console.log('Dados recebidos:', req.body);
-  
-  let { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula, status } = req.body;
-  
-  if (!nome || !email || !cargo || !senha || !matricula) {
-    return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
-  }
-  
-  // Se nivel_acesso não foi fornecido, determinar pelo cargo
-  if (!nivel_acesso) {
-    nivel_acesso = getNivelAcessoByCargo(cargo);
-  }
-  
-  // Se status foi fornecido em vez de ativo, usar o status
-  if (status !== undefined && ativo === undefined) {
-    ativo = status === 1 || status === true;
-  }
-  
+// LOGIN
+router.post('/login', async (req, res) => {
+  const { email, senha } = req.body;
   try {
-    // Verificar se email já existe
-    const [existingUser] = await pool.query('SELECT id FROM usuarios WHERE email = ?', [email]);
-    
-    if (existingUser.length > 0) {
-      return res.status(400).json({ success: false, message: 'Email já cadastrado' });
+    const [users] = await pool.query(`
+      SELECT f.id, f.nome, f.email, f.cargo, f.status, f.departamento, f.matricula,
+             n.descricao AS nivel_acesso
+      FROM tb_funcionarios f
+      LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
+      WHERE f.email = ? AND f.senha = ? AND f.status = 1
+    `, [email, senha]);
+
+    if (users.length === 0) {
+      return res.status(401).json({ success: false, message: 'Credenciais inválidas ou usuário inativo' });
     }
-    
-    // Inserir novo usuário
-    const [result] = await pool.query(`
-      INSERT INTO usuarios (nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento || null, senha, matricula]);
-    
-    console.log('Usuário criado com sucesso:', result);
-    
-    res.status(201).json({ 
+
+    const user = users[0];
+
+    const [nivel] = await pool.query(`
+      SELECT 
+        compra_impeditivos, compra_consumo, compra_estoque, compra_locais,
+        compra_investimentos, compra_alojamentos, compra_supermercados,
+        aprova_solicitacao
+      FROM nivel_acesso
+      WHERE mat_funcionario = ?
+    `, [user.matricula]);
+
+    user.permissoes = nivel.length > 0 ? {
+      compra_impeditivos: nivel[0].compra_impeditivos ? 1 : 0,
+      compra_consumo: nivel[0].compra_consumo ? 1 : 0,
+      compra_estoque: nivel[0].compra_estoque ? 1 : 0,
+      compra_locais: nivel[0].compra_locais ? 1 : 0,
+      compra_investimentos: nivel[0].compra_investimentos ? 1 : 0,
+      compra_alojamentos: nivel[0].compra_alojamentos ? 1 : 0,
+      compra_supermercados: nivel[0].compra_supermercados ? 1 : 0,
+      aprova_solicitacao: nivel[0].aprova_solicitacao ? 1 : 0
+    } : null;
+
+    res.json({ 
       success: true, 
-      id: result.insertId,
-      message: 'Usuário criado com sucesso' 
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        cargo: user.cargo,
+        nivel_acesso: user.nivel_acesso,
+        departamento: user.departamento,
+        matricula: user.matricula,
+        permissoes: user.permissoes
+      }
     });
-  } catch (error) {
-    console.error('Erro ao criar usuário:', error);
-    res.status(500).json({ success: false, message: `Erro ao criar usuário: ${error.message}` });
+  } catch (err) {
+    console.error('Erro ao realizar login:', err);
+    res.status(500).json({ success: false, message: 'Erro ao realizar login' });
   }
 });
 
-// Atualizar usuário
-router.put('/:id', async (req, res) => {
-  let { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
-  const id = req.params.id;
-  
-  if (!nome || !email || !cargo || !matricula) {
-    return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
-  }
-  
-  // Se nivel_acesso não foi fornecido, determinar pelo cargo
-  if (!nivel_acesso) {
-    nivel_acesso = getNivelAcessoByCargo(cargo);
-  }
-  
-  try {
-    // Verificar se usuário existe
-    const [existingUser] = await pool.query('SELECT id FROM usuarios WHERE id = ?', [id]);
-    
-    if (existingUser.length === 0) {
-      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
-    }
-    
-    let query = `
-      UPDATE usuarios 
-      SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?, matricula = ?
-      WHERE id = ?
-    `;
-    
-    let params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, matricula, id];
-    
-    // Se senha foi fornecida, atualize-a também
-    if (senha) {
-      query = `
-        UPDATE usuarios 
-        SET nome = ?, email = ?, cargo = ?, nivel_acesso = ?, ativo = ?, departamento = ?, matricula = ?, senha = ?
-        WHERE id = ?
-      `;
-      params = [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, matricula, senha, id];
-    }
-    
-    // Atualizar usuário
-    await pool.query(query, params);
-    
-    res.json({ success: true, message: 'Usuário atualizado com sucesso' });
-  } catch (error) {
-    console.error('Erro ao atualizar usuário:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar usuário' });
-  }
-});
-
-// Alterar status do usuário (ativar/desativar)
-router.patch('/:id/status', async (req, res) => {
-  const { ativo } = req.body;
-  const id = req.params.id;
-  
-  if (ativo === undefined) {
-    return res.status(400).json({ success: false, message: 'Status não informado' });
-  }
-  
-  try {
-    // Verificar se usuário existe
-    const [existingUser] = await pool.query('SELECT id FROM usuarios WHERE id = ?', [id]);
-    
-    if (existingUser.length === 0) {
-      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
-    }
-    
-    // Atualizar status
-    await pool.query('UPDATE usuarios SET ativo = ? WHERE id = ?', [ativo ? 1 : 0, id]);
-    
-    res.json({ success: true, message: 'Status do usuário atualizado com sucesso' });
-  } catch (error) {
-    console.error('Erro ao atualizar status do usuário:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar status do usuário' });
-  }
-});
-
-// Alterar senha
+// ALTERAR SENHA
 router.patch('/:id/senha', async (req, res) => {
   const { senhaAtual, novaSenha } = req.body;
-  const id = req.params.id;
   
   if (!senhaAtual || !novaSenha) {
     return res.status(400).json({ success: false, message: 'Senhas não informadas' });
@@ -191,7 +174,7 @@ router.patch('/:id/senha', async (req, res) => {
   
   try {
     // Verificar se a senha atual está correta
-    const [user] = await pool.query('SELECT senha FROM usuarios WHERE id = ?', [id]);
+    const [user] = await pool.query('SELECT senha FROM tb_funcionarios WHERE id = ?', [req.params.id]);
     
     if (user.length === 0) {
       return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
@@ -202,7 +185,7 @@ router.patch('/:id/senha', async (req, res) => {
     }
     
     // Atualizar senha
-    await pool.query('UPDATE usuarios SET senha = ? WHERE id = ?', [novaSenha, id]);
+    await pool.query('UPDATE tb_funcionarios SET senha = ? WHERE id = ?', [novaSenha, req.params.id]);
     
     res.json({ success: true, message: 'Senha alterada com sucesso' });
   } catch (error) {
@@ -211,53 +194,357 @@ router.patch('/:id/senha', async (req, res) => {
   }
 });
 
-// Autenticar usuário (login)
-router.post('/login', async (req, res) => {
-  const { email, senha } = req.body;
+// POST CRIAR FUNCIONÁRIO
+router.post('/', async (req, res) => {
+  console.log('Dados recebidos:', req.body);
   
-  if (!email || !senha) {
-    return res.status(400).json({ success: false, message: 'Email e senha são obrigatórios' });
-  }
+  const connection = await pool.getConnection();
   
   try {
-    const [users] = await pool.query(`
-      SELECT id, nome, email, cargo, nivel_acesso, ativo, departamento, matricula
-      FROM usuarios 
-      WHERE email = ? AND senha = ? AND ativo = 1
-    `, [email, senha]);
-    
-    if (users.length === 0) {
-      return res.status(401).json({ success: false, message: 'Email ou senha incorretos' });
-    }
-    
-    const user = users[0];
-    
-    res.json({ 
-      success: true, 
-      user: {
-        id: user.id,
-        nome: user.nome,
-        email: user.email,
-        cargo: user.cargo,
-        nivel_acesso: user.nivel_acesso,
-        departamento: user.departamento,
-        matricula: user.matricula
-      }
+    await connection.beginTransaction();
+
+    const { nome, email, cargo, status, departamento, senha, matricula, ativo } = req.body;
+
+    // Use status OR ativo flag
+    const isActive = status !== undefined ? (status === 1 || status === true) : 
+                    (ativo !== undefined ? ativo : true);
+
+    console.log('Dados processados:', { 
+      nome, 
+      email, 
+      cargo, 
+      status: isActive ? 1 : 0, 
+      departamento, 
+      matricula 
     });
-  } catch (error) {
-    console.error('Erro ao autenticar usuário:', error);
-    res.status(500).json({ success: false, message: 'Erro ao autenticar usuário' });
+
+    // Validar campos obrigatórios
+    if (!nome || !email || !cargo || !senha || !matricula) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Campos obrigatórios não preenchidos' 
+      });
+    }
+
+    // Verificar se já existe usuário com mesmo email ou matrícula
+    const [existingUsers] = await connection.query(
+      'SELECT * FROM tb_funcionarios WHERE email = ? OR matricula = ?',
+      [email, matricula]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email ou matrícula já cadastrados' 
+      });
+    }
+
+    // Obter nível de acesso baseado no cargo
+    const nivelAcesso = getNivelAcessoByCargo(cargo);
+    if (!nivelAcesso) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cargo inválido' 
+      });
+    }
+
+    console.log('Nível de acesso:', nivelAcesso);
+
+    // Inserir funcionário
+    const [result] = await connection.query(
+      'INSERT INTO tb_funcionarios (nome, email, cargo, status, departamento, senha, matricula) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nome, email, cargo, isActive ? 1 : 0, departamento || null, senha, matricula]
+    );
+
+    console.log('Funcionário inserido com ID:', result.insertId);
+
+    try {
+      // Verificar estrutura da tabela nivel_acesso
+      const [tableInfo] = await connection.query('DESCRIBE nivel_acesso');
+      console.log('Estrutura da tabela nivel_acesso:', tableInfo);
+
+      // Inserir nível de acesso
+      if (tableInfo.some(column => column.Field === 'permissoes')) {
+        // Nova estrutura
+        await connection.query(
+          'INSERT INTO nivel_acesso (mat_funcionario, nivel, descricao, permissoes) VALUES (?, ?, ?, ?)',
+          [matricula, nivelAcesso.nivel, nivelAcesso.descricao, JSON.stringify(nivelAcesso.permissoes)]
+        );
+      } else {
+        // Estrutura antiga
+        await connection.query(
+          `INSERT INTO nivel_acesso (
+            mat_funcionario, nivel, descricao,
+            compra_impeditivos, compra_consumo, compra_estoque,
+            compra_locais, compra_investimentos, compra_alojamentos,
+            compra_supermercados, aprova_solicitacao
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            matricula, nivelAcesso.nivel, nivelAcesso.descricao,
+            nivelAcesso.permissoes.compra_impeditivos,
+            nivelAcesso.permissoes.compra_consumo,
+            nivelAcesso.permissoes.compra_estoque,
+            nivelAcesso.permissoes.compra_locais,
+            nivelAcesso.permissoes.compra_investimentos,
+            nivelAcesso.permissoes.compra_alojamentos,
+            nivelAcesso.permissoes.compra_supermercados,
+            nivelAcesso.permissoes.aprova_solicitacao
+          ]
+        );
+      }
+    } catch (tableError) {
+      console.error('Erro ao manipular nivel_acesso (continuando):', tableError);
+      // Continue mesmo se houver erro com a tabela nivel_acesso
+    }
+
+    console.log('Nível de acesso inserido para matrícula:', matricula);
+
+    await connection.commit();
+
+    // Buscar usuário criado
+    const [newUser] = await connection.query(
+      `SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
+              n.descricao AS nivel_acesso
+       FROM tb_funcionarios f
+       LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
+       WHERE f.id = ?`,
+      [result.insertId]
+    );
+
+    console.log('Usuário criado:', newUser[0]);
+
+    res.status(201).json({ 
+      success: true, 
+      id: result.insertId,
+      user: newUser.length > 0 ? newUser[0] : null,
+      message: 'Usuário criado com sucesso'
+    });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Erro ao criar funcionário:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao criar funcionário: ' + err.message 
+    });
+  } finally {
+    connection.release();
   }
 });
 
-// Obter todos os níveis de autorização
-router.get('/niveis-autorizacao', async (req, res) => {
+// ATUALIZAR FUNCIONÁRIO
+router.put('/:id', async (req, res) => {
+  const { nome, email, cargo, status, departamento, senha, matricula, ativo } = req.body;
+  
+  // Use status OR ativo flag
+  const isActive = status !== undefined ? (status === 1 || status === true) : 
+                  (ativo !== undefined ? ativo : true);
+  
   try {
-    const [rows] = await pool.query('SELECT * FROM niveis_autorizacao ORDER BY id');
-    res.json(rows);
+    let query = `
+      UPDATE tb_funcionarios 
+      SET nome = ?, email = ?, cargo = ?, status = ?, departamento = ?, matricula = ?
+      WHERE id = ?
+    `;
+    let params = [nome, email, cargo, isActive ? 1 : 0, departamento, matricula, req.params.id];
+
+    if (senha) {
+      query = `
+        UPDATE tb_funcionarios 
+        SET nome = ?, email = ?, cargo = ?, status = ?, departamento = ?, matricula = ?, senha = ?
+        WHERE id = ?
+      `;
+      params = [nome, email, cargo, isActive ? 1 : 0, departamento, matricula, senha, req.params.id];
+    }
+
+    await pool.query(query, params);
+    
+    // Atualizar o nível de acesso se o cargo foi alterado
+    const nivelAcesso = getNivelAcessoByCargo(cargo);
+    if (nivelAcesso) {
+      try {
+        const [exists] = await pool.query(
+          'SELECT 1 FROM nivel_acesso WHERE mat_funcionario = ?',
+          [matricula]
+        );
+
+        if (exists.length > 0) {
+          // Atualizar
+          await pool.query(`
+            UPDATE nivel_acesso SET
+              nivel = ?,
+              descricao = ?
+            WHERE mat_funcionario = ?
+          `, [nivelAcesso.nivel, nivelAcesso.descricao, matricula]);
+        } else {
+          // Inserir
+          await pool.query(`
+            INSERT INTO nivel_acesso (
+              mat_funcionario, nivel, descricao, 
+              compra_impeditivos, compra_consumo, compra_estoque,
+              compra_locais, compra_investimentos, compra_alojamentos,
+              compra_supermercados, aprova_solicitacao
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            matricula, nivelAcesso.nivel, nivelAcesso.descricao,
+            nivelAcesso.permissoes.compra_impeditivos,
+            nivelAcesso.permissoes.compra_consumo,
+            nivelAcesso.permissoes.compra_estoque,
+            nivelAcesso.permissoes.compra_locais,
+            nivelAcesso.permissoes.compra_investimentos,
+            nivelAcesso.permissoes.compra_alojamentos,
+            nivelAcesso.permissoes.compra_supermercados,
+            nivelAcesso.permissoes.aprova_solicitacao
+          ]);
+        }
+      } catch (nivelError) {
+        console.error('Erro ao atualizar nível de acesso (não crítico):', nivelError);
+        // Não falhar a requisição principal por causa deste erro
+      }
+    }
+    
+    res.status(200).json({ success: true, message: 'Funcionário atualizado com sucesso' });
+  } catch (err) {
+    console.error('Erro ao atualizar funcionário:', err);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar funcionário' });
+  }
+});
+
+// Alterar status do usuário (ativar/desativar)
+router.patch('/:id/status', async (req, res) => {
+  const { ativo, status } = req.body;
+  const id = req.params.id;
+  
+  // Use ativo OR status
+  const isActive = ativo !== undefined ? ativo : (status !== undefined ? (status === 1 || status === true) : null);
+  
+  if (isActive === null) {
+    return res.status(400).json({ success: false, message: 'Status não informado' });
+  }
+  
+  try {
+    // Verificar se usuário existe
+    const [existingUser] = await pool.query('SELECT id FROM tb_funcionarios WHERE id = ?', [id]);
+    
+    if (existingUser.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+    }
+    
+    // Atualizar status
+    await pool.query('UPDATE tb_funcionarios SET status = ? WHERE id = ?', [isActive ? 1 : 0, id]);
+    
+    res.json({ success: true, message: 'Status do usuário atualizado com sucesso' });
   } catch (error) {
-    console.error('Erro ao buscar níveis de autorização:', error);
-    res.status(500).json({ success: false, message: 'Erro ao buscar níveis de autorização' });
+    console.error('Erro ao atualizar status do usuário:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar status do usuário' });
+  }
+});
+
+// CRIAR NÍVEL DE ACESSO
+router.post('/nivel-acesso', async (req, res) => {
+  const {
+    matricula,
+    descricao,
+    compra_impeditivos,
+    compra_consumo,
+    compra_estoque,
+    compra_locais,
+    compra_investimentos,
+    compra_alojamentos,
+    compra_supermercados,
+    aprova_solicitacao
+  } = req.body;
+
+  try {
+    // Verifica se já existe um nível de acesso para a matrícula
+    const [exists] = await pool.query(
+      `SELECT 1 FROM nivel_acesso WHERE mat_funcionario = ?`,
+      [matricula]
+    );
+
+    if (exists.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Nível de acesso já existe para essa matrícula' 
+      });
+    }
+
+    await pool.query(`
+      INSERT INTO nivel_acesso (
+        mat_funcionario,
+        descricao,
+        compra_impeditivos,
+        compra_consumo,
+        compra_estoque,
+        compra_locais,
+        compra_investimentos,
+        compra_alojamentos,
+        compra_supermercados,
+        aprova_solicitacao
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      matricula,
+      descricao,
+      compra_impeditivos ? 1 : 0,
+      compra_consumo ? 1 : 0,
+      compra_estoque ? 1 : 0,
+      compra_locais ? 1 : 0,
+      compra_investimentos ? 1 : 0,
+      compra_alojamentos ? 1 : 0,
+      compra_supermercados ? 1 : 0,
+      aprova_solicitacao ? 1 : 0
+    ]);
+
+    res.status(201).json({ success: true, message: 'Nível de acesso cadastrado com sucesso' });
+  } catch (err) {
+    console.error('Erro ao inserir nível de acesso:', err);
+    res.status(500).json({ success: false, message: 'Erro ao inserir nível de acesso' });
+  }
+});
+
+// ATUALIZAR NÍVEL DE ACESSO
+router.put('/nivel-acesso/:matricula', async (req, res) => {
+  const {
+    descricao,
+    compra_impeditivos,
+    compra_consumo,
+    compra_estoque,
+    compra_locais,
+    compra_investimentos,
+    compra_alojamentos,
+    compra_supermercados,
+    aprova_solicitacao
+  } = req.body;
+
+  try {
+    await pool.query(`
+      UPDATE nivel_acesso SET
+        descricao = ?,
+        compra_impeditivos = ?,
+        compra_consumo = ?,
+        compra_estoque = ?,
+        compra_locais = ?,
+        compra_investimentos = ?,
+        compra_alojamentos = ?,
+        compra_supermercados = ?,
+        aprova_solicitacao = ?
+      WHERE mat_funcionario = ?
+    `, [
+      descricao,
+      compra_impeditivos ? 1 : 0,
+      compra_consumo ? 1 : 0,
+      compra_estoque ? 1 : 0,
+      compra_locais ? 1 : 0,
+      compra_investimentos ? 1 : 0,
+      compra_alojamentos ? 1 : 0,
+      compra_supermercados ? 1 : 0,
+      aprova_solicitacao ? 1 : 0,
+      req.params.matricula
+    ]);
+
+    res.status(200).json({ success: true, message: 'Nível de acesso atualizado com sucesso' });
+  } catch (err) {
+    console.error('Erro ao atualizar nível de acesso:', err);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar nível de acesso' });
   }
 });
 

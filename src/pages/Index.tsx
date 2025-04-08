@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   FilePlus, 
@@ -23,6 +23,19 @@ import {
 } from '@/components/ui/card';
 import { mockRequests } from '@/utils/mockData';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+
+interface Request {
+  id: number;
+  nome_solicitante: string;
+  requesterName: string;
+  application: string;
+  costCenter: string;
+  centro_custo: string;
+  application: string;
+  status: string;
+}
 
 const PageContainer: React.FC<{
   children: React.ReactNode;
@@ -58,25 +71,71 @@ const SectionTitle: React.FC<{
 };
 
 const Index: React.FC = () => {
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Fetch requests from API
+  const { data: fetchedRequests, isLoading: requestsLoading } = useQuery({
+    queryKey: ['requests'],
+    queryFn: async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/requests`);
+        
+        if (!response.ok) {
+          throw new Error('Erro ao carregar solicitações');
+        }
+        
+        const requestData = await response.json();
+        console.log('Dados carregados da API:', requestData);
+        return requestData;
+      } catch (error) {
+        console.error('Erro ao buscar solicitações:', error);
+        toast.error('Não foi possível carregar as solicitações. Usando dados simulados.');
+        // Return mockData as fallback
+        return mockRequests;
+      }
+    }
+  });
+  
+  useEffect(() => {
+    if (fetchedRequests) {
+      setRequests(fetchedRequests);
+      setIsLoading(false);
+    }
+  }, [fetchedRequests]);
+  
   // Get recent requests for the dashboard
-  const recentRequests = mockRequests.slice(0, 5);
+  const recentRequests = requests.length > 0 ? requests.slice(0, 5) : mockRequests.slice(0, 5);
   
   // Organize requests by status
-  const pendingRequests = mockRequests.filter(req => 
-    req.status === 'Solicitado' || req.status === 'Em Cotação'
-  ).slice(0, 3);
+  const pendingRequests = requests.length > 0
+    ? requests.filter(req => 
+        req.status === 'Solicitado' || req.status === 'Em Cotação'
+      ).slice(0, 3)
+    : mockRequests.filter(req => 
+        req.status === 'Solicitado' || req.status === 'Em Cotação'
+      ).slice(0, 3);
   
-  const approvedRequests = mockRequests.filter(req => 
-    req.status === 'Aprovado' || req.status === 'Aprovado para Compra'
-  ).slice(0, 3);
+  const approvedRequests = requests.length > 0
+    ? requests.filter(req => 
+        req.status === 'Aprovado' || req.status === 'Aprovado para Compra'
+      ).slice(0, 3)
+    : mockRequests.filter(req => 
+        req.status === 'Aprovado' || req.status === 'Aprovado para Compra'
+      ).slice(0, 3);
   
-  const completedRequests = mockRequests.filter(req => 
-    req.status === 'Finalizado'
-  ).slice(0, 3);
+  const completedRequests = requests.length > 0
+    ? requests.filter(req => 
+        req.status === 'Finalizado'
+      ).slice(0, 3)
+    : mockRequests.filter(req => 
+        req.status === 'Finalizado'
+      ).slice(0, 3);
   
   return (
     <PageContainer>
-      <div className="section-padding">
+      <div className="section-padding p-4 sm:p-6">
         <SectionTitle 
           title="Dashboard"
           description="Visão geral do sistema de compras"
@@ -107,14 +166,24 @@ const Index: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {recentRequests.map((request, index) => (
-                <div 
-                  key={request.id}
-                  className={`animate-slideInRight delay-${index * 100}`}
-                >
-                  <RequestCard request={request} />
+              {isLoading || requestsLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
                 </div>
-              ))}
+              ) : recentRequests.length > 0 ? (
+                recentRequests.map((request, index) => (
+                  <div 
+                    key={request.id}
+                    className={`animate-slideInRight delay-${index * 100}`}
+                  >
+                    <RequestCard request={request} />
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Não há solicitações recentes
+                </div>
+              )}
             </CardContent>
           </Card>
           
@@ -127,7 +196,11 @@ const Index: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 pt-0">
-                {pendingRequests.length > 0 ? (
+                {isLoading || requestsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
+                  </div>
+                ) : pendingRequests.length > 0 ? (
                   pendingRequests.map(request => (
                     <Link 
                       key={request.id} 
@@ -137,7 +210,7 @@ const Index: React.FC = () => {
                       <div>
                         <p className="font-medium">{request.application}</p>
                         <p className="text-sm text-muted-foreground">
-                          {request.requesterName} • CC: {request.costCenter}
+                          {request.requesterName || request.nome_solicitante} • CC: {request.costCenter || request.centro_custo}
                         </p>
                       </div>
                       <AlertCircle className="h-5 w-5 text-amber-500" />
@@ -164,7 +237,11 @@ const Index: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 pt-0">
-                {approvedRequests.length > 0 ? (
+                {isLoading || requestsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
+                  </div>
+                ) : approvedRequests.length > 0 ? (
                   approvedRequests.map(request => (
                     <Link 
                       key={request.id} 
@@ -174,7 +251,7 @@ const Index: React.FC = () => {
                       <div>
                         <p className="font-medium">{request.application}</p>
                         <p className="text-sm text-muted-foreground">
-                          {request.requesterName} • CC: {request.costCenter}
+                          {request.requesterName || request.nome_solicitante} • CC: {request.costCenter || request.centro_custo}
                         </p>
                       </div>
                     </Link>
@@ -200,7 +277,11 @@ const Index: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 pt-0">
-                {completedRequests.length > 0 ? (
+                {isLoading || requestsLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin h-6 w-6 border-3 border-primary border-t-transparent rounded-full"></div>
+                  </div>
+                ) : completedRequests.length > 0 ? (
                   completedRequests.map(request => (
                     <Link 
                       key={request.id} 
@@ -210,7 +291,7 @@ const Index: React.FC = () => {
                       <div>
                         <p className="font-medium">{request.application}</p>
                         <p className="text-sm text-muted-foreground">
-                          {request.requesterName} • CC: {request.costCenter}
+                          {request.requesterName || request.nome_solicitante} • CC: {request.costCenter || request.centro_custo}
                         </p>
                       </div>
                     </Link>
