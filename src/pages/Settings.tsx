@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -46,6 +47,7 @@ const Settings = () => {
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [costCenterDialogOpen, setCostCenterDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const isAdmin = true;
   const queryClient = useQueryClient();
 
@@ -120,26 +122,38 @@ const Settings = () => {
   const onSubmitUser = async (data: UserFormValues) => {
     try {
       setIsSubmitting(true);
+      setSubmitError(null);
+      
       const apiUrl = import.meta.env.VITE_API_URL || '';
       console.log('Submitting user to:', `${apiUrl}/api/users`);
       console.log('User data:', data);
 
+      // Ensure all data is properly formatted
+      const userData = {
+        ...data,
+        ativo: data.ativo ? 1 : 0, // Ensure boolean is converted to 0/1 for the backend
+        status: data.ativo ? 1 : 0, // Include status field as well (for backward compatibility)
+      };
+
       const response = await fetch(`${apiUrl}/api/users`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(userData)
       });
 
-      const contentType = response.headers.get('content-type');
+      // First try to parse response as JSON
       let responseData;
+      let responseText;
       
-      if (contentType && contentType.includes('application/json')) {
-        responseData = await response.json();
-      } else {
-        const textResponse = await response.text();
-        throw new Error(`Resposta não-JSON recebida: ${textResponse}`);
+      try {
+        responseText = await response.text();
+        responseData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError, 'Response text:', responseText);
+        throw new Error(`Resposta não-JSON recebida: ${responseText.substring(0, 100)}...`);
       }
 
       if (!response.ok) {
@@ -151,9 +165,10 @@ const Settings = () => {
       form.reset();
 
       // Recarregar lista de usuários
-      refetchUsers();
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     } catch (error: any) {
       console.error('Erro ao criar usuário:', error);
+      setSubmitError(error.message || 'Erro ao criar usuário');
       toast.error(error.message || 'Erro ao criar usuário');
     } finally {
       setIsSubmitting(false);
@@ -163,23 +178,39 @@ const Settings = () => {
   const handleUserStatusChange = async (userId: number, newStatus: boolean) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '';
+      
+      console.log('Changing user status:', `${apiUrl}/api/users/${userId}/status`, { ativo: newStatus });
+      
       const response = await fetch(`${apiUrl}/api/users/${userId}/status`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({ ativo: newStatus })
+        body: JSON.stringify({ 
+          ativo: newStatus,
+          status: newStatus ? 1 : 0 // Include both formats to ensure compatibility
+        })
       });
 
-      const result = await response.json();
+      // Handle potential non-JSON responses
+      let result;
+      try {
+        const text = await response.text();
+        result = JSON.parse(text);
+      } catch (parseError) {
+        console.error('Error parsing response:', parseError);
+        throw new Error('Erro ao processar resposta do servidor');
+      }
 
       if (!response.ok) {
         throw new Error(result.message || 'Erro ao alterar status do usuário');
       }
 
       toast.success(newStatus ? 'Usuário ativado com sucesso!' : 'Usuário desativado com sucesso!');
-      refetchUsers();
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     } catch (error: any) {
+      console.error('Error changing user status:', error);
       toast.error(error.message || 'Erro ao alterar status do usuário');
     }
   };
@@ -238,6 +269,12 @@ const Settings = () => {
                       
                       <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmitUser)} className="space-y-4 py-4">
+                          {submitError && (
+                            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-4">
+                              {submitError}
+                            </div>
+                          )}
+                          
                           <FormField
                             control={form.control}
                             name="nome"
@@ -371,7 +408,10 @@ const Settings = () => {
                             <Button 
                               type="button" 
                               variant="outline" 
-                              onClick={() => setUserDialogOpen(false)}
+                              onClick={() => {
+                                setSubmitError(null);
+                                setUserDialogOpen(false);
+                              }}
                             >
                               Cancelar
                             </Button>
@@ -452,7 +492,7 @@ const Settings = () => {
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1">
                                       {(() => {
-                                        const level = accessLevels.find(level => level.value === user.nivel_acesso);
+                                        const level = accessLevels.find(level => level.value.toLowerCase() === (user.nivel_acesso || '').toLowerCase());
                                         return (
                                           <>
                                             <div className={`w-2 h-2 rounded-full ${level ? level.color : 'bg-gray-400'}`}></div>
