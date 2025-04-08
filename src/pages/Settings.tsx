@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Users,
@@ -7,7 +7,10 @@ import {
   CreditCard,
   FileText,
   Settings as SettingsIcon,
-  UserPlus
+  UserPlus,
+  Shield,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,16 +45,22 @@ const Settings = () => {
   const isMobile = useIsMobile();
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [costCenterDialogOpen, setCostCenterDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const isAdmin = true;
+  const queryClient = useQueryClient();
 
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, refetch: refetchUsers } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`);
+        const apiUrl = import.meta.env.VITE_API_URL || '';
+        console.log('Fetching users from:', `${apiUrl}/api/users`);
+        
+        const response = await fetch(`${apiUrl}/api/users`);
         
         if (!response.ok) {
-          throw new Error(`Error: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          throw new Error(`Error: ${response.status} ${response.statusText} - ${errorText}`);
         }
         
         const contentType = response.headers.get('content-type');
@@ -59,7 +68,9 @@ const Settings = () => {
           throw new Error('API did not return JSON');
         }
         
-        return await response.json();
+        const data = await response.json();
+        console.log('Users data:', data);
+        return data;
       } catch (error) {
         console.error('Failed to fetch users:', error);
         // Return empty array as fallback
@@ -108,42 +119,68 @@ const Settings = () => {
 
   const onSubmitUser = async (data: UserFormValues) => {
     try {
-      const submitData = {
-        ...data,
-        nivel_acesso: getNivelAcessoByCargo(data.cargo)
-      };
+      setIsSubmitting(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      console.log('Submitting user to:', `${apiUrl}/api/users`);
+      console.log('User data:', data);
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`, {
+      const response = await fetch(`${apiUrl}/api/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(submitData)
+        body: JSON.stringify(data)
       });
 
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type');
-        let errorMessage = 'Erro ao criar usuário';
-        
-        if (contentType && contentType.includes('application/json')) {
-          const result = await response.json();
-          errorMessage = result.message || errorMessage;
-        } else {
-          errorMessage = `Erro ${response.status}: ${response.statusText}`;
-        }
-        
-        throw new Error(errorMessage);
+      const contentType = response.headers.get('content-type');
+      let responseData;
+      
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        const textResponse = await response.text();
+        throw new Error(`Resposta não-JSON recebida: ${textResponse}`);
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.message || `Erro ${response.status}: ${response.statusText}`);
+      }
+
       toast.success('Usuário criado com sucesso!');
       setUserDialogOpen(false);
       form.reset();
 
       // Recarregar lista de usuários
-      // queryClient.invalidateQueries({ queryKey: ['users'] });
+      refetchUsers();
     } catch (error: any) {
+      console.error('Erro ao criar usuário:', error);
       toast.error(error.message || 'Erro ao criar usuário');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUserStatusChange = async (userId: number, newStatus: boolean) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ativo: newStatus })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Erro ao alterar status do usuário');
+      }
+
+      toast.success(newStatus ? 'Usuário ativado com sucesso!' : 'Usuário desativado com sucesso!');
+      refetchUsers();
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao alterar status do usuário');
     }
   };
 
@@ -338,7 +375,12 @@ const Settings = () => {
                             >
                               Cancelar
                             </Button>
-                            <Button type="submit">Salvar</Button>
+                            <Button 
+                              type="submit" 
+                              disabled={isSubmitting}
+                            >
+                              {isSubmitting ? 'Salvando...' : 'Salvar'}
+                            </Button>
                           </div>
                         </form>
                       </Form>
@@ -377,80 +419,99 @@ const Settings = () => {
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {users.map((user: any) => (
-                              <tr key={user.id}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="flex items-center">
-                                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                      {user.nome.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="ml-4">
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {user.nome}
-                                      </div>
-                                      <div className="text-sm text-gray-500">
-                                        {user.departamento || '-'}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm text-gray-900">{user.email}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm text-gray-900">{user.cargo}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1">
-                                    {(() => {
-                                      const level = accessLevels.find(level => level.value === user.nivel_acesso);
-                                      return (
-                                        <>
-                                          <div className={`w-2 h-2 rounded-full ${level ? level.color : 'bg-gray-400'}`}></div>
-                                          <span>{level ? level.label : user.nivel_acesso}</span>
-                                        </>
-                                      );
-                                    })()}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                    {user.ativo ? 'Ativo' : 'Inativo'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <Button variant="ghost" size="sm">Editar</Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="sm" className="text-destructive">
-                                        {user.ativo ? 'Desativar' : 'Ativar'}
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>
-                                          {user.ativo ? 'Desativar usuário' : 'Ativar usuário'}
-                                        </AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          {user.ativo 
-                                            ? `Tem certeza que deseja desativar o usuário ${user.nome}? Ele não poderá mais acessar o sistema.`
-                                            : `Tem certeza que deseja ativar o usuário ${user.nome}? Ele poderá acessar o sistema novamente.`
-                                          }
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          className={user.ativo ? 'bg-destructive hover:bg-destructive/90' : ''}
-                                        >
-                                          {user.ativo ? 'Desativar' : 'Ativar'}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                            {users.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="px-6 py-4 text-center">
+                                  Nenhum usuário encontrado. Adicione um novo usuário.
                                 </td>
                               </tr>
-                            ))}
+                            ) : (
+                              users.map((user: any) => (
+                                <tr key={user.id}>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="flex items-center">
+                                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        {user.nome?.charAt(0).toUpperCase() || '?'}
+                                      </div>
+                                      <div className="ml-4">
+                                        <div className="text-sm font-medium text-gray-900">
+                                          {user.nome || 'Sem nome'}
+                                        </div>
+                                        <div className="text-sm text-gray-500">
+                                          {user.departamento || '-'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm text-gray-900">{user.email || '-'}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm text-gray-900">{user.cargo || '-'}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1">
+                                      {(() => {
+                                        const level = accessLevels.find(level => level.value === user.nivel_acesso);
+                                        return (
+                                          <>
+                                            <div className={`w-2 h-2 rounded-full ${level ? level.color : 'bg-gray-400'}`}></div>
+                                            <span>{level ? level.label : user.nivel_acesso || 'Não definido'}</span>
+                                          </>
+                                        );
+                                      })()}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                      {user.ativo ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <Button variant="ghost" size="sm" className="inline-flex items-center">
+                                      <Edit className="h-4 w-4 mr-1" /> Editar
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="sm" className={`text-${user.ativo ? 'destructive' : 'green-600'} inline-flex items-center`}>
+                                          {user.ativo ? (
+                                            <>
+                                              <Trash2 className="h-4 w-4 mr-1" /> Desativar
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Shield className="h-4 w-4 mr-1" /> Ativar
+                                            </>
+                                          )}
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            {user.ativo ? 'Desativar usuário' : 'Ativar usuário'}
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            {user.ativo 
+                                              ? `Tem certeza que deseja desativar o usuário ${user.nome}? Ele não poderá mais acessar o sistema.`
+                                              : `Tem certeza que deseja ativar o usuário ${user.nome}? Ele poderá acessar o sistema novamente.`
+                                            }
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            className={user.ativo ? 'bg-destructive hover:bg-destructive/90' : ''}
+                                            onClick={() => handleUserStatusChange(user.id, !user.ativo)}
+                                          >
+                                            {user.ativo ? 'Desativar' : 'Ativar'}
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
                           </tbody>
                         </table>
                       </div>
