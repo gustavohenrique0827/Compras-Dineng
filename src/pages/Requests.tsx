@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -46,13 +47,14 @@ const Requests = () => {
     }
   });
   
-  // Apply filters to the list of requests
+  // Apply filters to the list of requests with null checks to prevent "toLowerCase of undefined" error
   const filteredRequests = requests.filter(request => {
+    // Guard against undefined properties with optional chaining and nullish coalescing
     const matchesSearch = 
-      request.aplicacao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.nome_solicitante.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.centro_custo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(request.id).includes(searchTerm);
+      (request.aplicacao?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (request.nome_solicitante?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (request.centro_custo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      String(request.id || '').includes(searchTerm);
     
     const matchesStatus = statusFilter === 'all' ? true : request.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' ? true : request.prioridade === priorityFilter;
