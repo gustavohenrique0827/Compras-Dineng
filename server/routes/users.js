@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
@@ -59,7 +58,9 @@ router.get('/:id', async (req, res) => {
 
 // Criar novo usuário
 router.post('/', async (req, res) => {
-  let { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula } = req.body;
+  console.log('Dados recebidos:', req.body);
+  
+  let { nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula, status } = req.body;
   
   if (!nome || !email || !cargo || !senha || !matricula) {
     return res.status(400).json({ success: false, message: 'Campos obrigatórios não preenchidos' });
@@ -68,6 +69,11 @@ router.post('/', async (req, res) => {
   // Se nivel_acesso não foi fornecido, determinar pelo cargo
   if (!nivel_acesso) {
     nivel_acesso = getNivelAcessoByCargo(cargo);
+  }
+  
+  // Se status foi fornecido em vez de ativo, usar o status
+  if (status !== undefined && ativo === undefined) {
+    ativo = status === 1 || status === true;
   }
   
   try {
@@ -82,12 +88,18 @@ router.post('/', async (req, res) => {
     const [result] = await pool.query(`
       INSERT INTO usuarios (nome, email, cargo, nivel_acesso, ativo, departamento, senha, matricula)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento, senha, matricula]);
+    `, [nome, email, cargo, nivel_acesso, ativo ? 1 : 0, departamento || null, senha, matricula]);
     
-    res.status(201).json({ success: true, id: result.insertId });
+    console.log('Usuário criado com sucesso:', result);
+    
+    res.status(201).json({ 
+      success: true, 
+      id: result.insertId,
+      message: 'Usuário criado com sucesso' 
+    });
   } catch (error) {
     console.error('Erro ao criar usuário:', error);
-    res.status(500).json({ success: false, message: 'Erro ao criar usuário' });
+    res.status(500).json({ success: false, message: `Erro ao criar usuário: ${error.message}` });
   }
 });
 
