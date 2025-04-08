@@ -33,7 +33,8 @@ import CostCenterDialog from '@/components/cost-center/CostCenterDialog';
 const userFormSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
-  cargo: z.string().min(3, "Cargo deve ter pelo menos 3 caracteres"),
+  cargo: z.string().min(1, "Cargo é obrigatório"),
+  nivelAcesso: z.string().min(1, "Nível de acesso é obrigatório"),
   departamento: z.string().optional(),
   matricula: z.string().min(1, "Matrícula é obrigatória"),
   ativo: z.boolean().default(true),
@@ -41,6 +42,30 @@ const userFormSchema = z.object({
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
+
+// Lista de cargos disponíveis
+const availablePositions = [
+  { value: 'Diretor', label: 'Diretor' },
+  { value: 'Gerente', label: 'Gerente' },
+  { value: 'Coordenador', label: 'Coordenador' },
+  { value: 'Supervisor', label: 'Supervisor' },
+  { value: 'Analista', label: 'Analista' },
+  { value: 'Assistente', label: 'Assistente' },
+  { value: 'Estagiário', label: 'Estagiário' },
+  { value: 'Administrador', label: 'Administrador' },
+  { value: 'Comprador', label: 'Comprador' },
+  { value: 'Levantador', label: 'Levantador' },
+  { value: 'Encarregado', label: 'Encarregado' },
+  { value: 'Segurança', label: 'Segurança' },
+];
+
+// Níveis de acesso
+const accessLevelOptions = [
+  { value: 'verde', label: 'Verde', description: 'Diretoria e Gerência', color: 'bg-green-500' },
+  { value: 'azul', label: 'Azul', description: 'Supervisão e Segurança', color: 'bg-blue-500' },
+  { value: 'marrom', label: 'Marrom', description: 'Coordenação', color: 'bg-amber-800' },
+  { value: 'amarelo', label: 'Amarelo', description: 'Levantador e Encarregado', color: 'bg-yellow-500' },
+];
 
 const Settings = () => {
   const isMobile = useIsMobile();
@@ -61,21 +86,18 @@ const Settings = () => {
         const response = await fetch(`${apiUrl}/api/users`);
         
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Error: ${response.status} ${response.statusText} - ${errorText}`);
+          throw new Error(`Error: ${response.status} ${response.statusText}`);
         }
         
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('API did not return JSON');
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch (parseError) {
+          console.error('Failed to parse response as JSON:', text.substring(0, 100));
+          return [];
         }
-        
-        const data = await response.json();
-        console.log('Users data:', data);
-        return data;
       } catch (error) {
         console.error('Failed to fetch users:', error);
-        // Return empty array as fallback
         return [];
       }
     },
@@ -86,21 +108,22 @@ const Settings = () => {
     queryKey: ['costCenters'],
     queryFn: async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/cost-centers`);
+        const apiUrl = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${apiUrl}/api/cost-centers`);
         
         if (!response.ok) {
           throw new Error(`Error: ${response.status} ${response.statusText}`);
         }
         
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('API did not return JSON');
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch (parseError) {
+          console.error('Failed to parse response as JSON:', text.substring(0, 100));
+          return [];
         }
-        
-        return await response.json();
       } catch (error) {
         console.error('Failed to fetch cost centers:', error);
-        // Return empty array as fallback
         return [];
       }
     }
@@ -112,6 +135,7 @@ const Settings = () => {
       nome: '',
       email: '',
       cargo: '',
+      nivelAcesso: '',
       departamento: '',
       matricula: '',
       ativo: true,
@@ -130,9 +154,15 @@ const Settings = () => {
 
       // Ensure all data is properly formatted
       const userData = {
-        ...data,
-        ativo: data.ativo ? 1 : 0, // Ensure boolean is converted to 0/1 for the backend
-        status: data.ativo ? 1 : 0, // Include status field as well (for backward compatibility)
+        nome: data.nome,
+        email: data.email,
+        cargo: data.cargo,
+        nivel_acesso: data.nivelAcesso,
+        departamento: data.departamento || '',
+        matricula: data.matricula,
+        senha: data.senha,
+        ativo: data.ativo ? 1 : 0, 
+        status: data.ativo ? 1 : 0 // Include status field as well (for backward compatibility)
       };
 
       const response = await fetch(`${apiUrl}/api/users`, {
@@ -144,16 +174,16 @@ const Settings = () => {
         body: JSON.stringify(userData)
       });
 
-      // First try to parse response as JSON
-      let responseData;
-      let responseText;
+      // Read the response as text first
+      const responseText = await response.text();
       
+      // Try to parse it as JSON
+      let responseData;
       try {
-        responseText = await response.text();
         responseData = JSON.parse(responseText);
       } catch (parseError) {
         console.error('Error parsing response:', parseError, 'Response text:', responseText);
-        throw new Error(`Resposta não-JSON recebida: ${responseText.substring(0, 100)}...`);
+        throw new Error(`Resposta não pode ser processada: ${responseText.substring(0, 100)}...`);
       }
 
       if (!response.ok) {
@@ -194,12 +224,12 @@ const Settings = () => {
       });
 
       // Handle potential non-JSON responses
+      const responseText = await response.text();
       let result;
       try {
-        const text = await response.text();
-        result = JSON.parse(text);
+        result = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('Error parsing response:', parseError);
+        console.error('Error parsing response:', parseError, 'Response text:', responseText);
         throw new Error('Erro ao processar resposta do servidor');
       }
 
@@ -213,6 +243,16 @@ const Settings = () => {
       console.error('Error changing user status:', error);
       toast.error(error.message || 'Erro ao alterar status do usuário');
     }
+  };
+
+  const getNivelAcessoColorClass = (nivel: string) => {
+    const level = accessLevelOptions.find(option => option.value === nivel);
+    return level ? level.color : 'bg-gray-400';
+  };
+
+  const getNivelAcessoLabel = (nivel: string) => {
+    const level = accessLevelOptions.find(option => option.value === nivel);
+    return level ? level.label : nivel || 'Não definido';
   };
 
   return (
@@ -343,26 +383,20 @@ const Settings = () => {
                                   <FormControl>
                                     <Select
                                       onValueChange={field.onChange}
-                                      defaultValue={field.value}
+                                      value={field.value}
                                     >
                                       <SelectTrigger>
                                         <SelectValue placeholder="Selecione um cargo" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        {accessLevels.map((level) => (
-                                          <SelectItem key={level.value} value={level.value}>
-                                            <div className="flex items-center gap-2">
-                                              <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
-                                              <span>{level.label}</span>
-                                            </div>
+                                        {availablePositions.map((position) => (
+                                          <SelectItem key={position.value} value={position.value}>
+                                            {position.label}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
                                     </Select>
                                   </FormControl>
-                                  <FormDescription>
-                                    O nível de acesso será definido automaticamente com base no cargo
-                                  </FormDescription>
                                   <FormMessage />
                                 </FormItem>
                               )}
@@ -370,18 +404,49 @@ const Settings = () => {
                             
                             <FormField
                               control={form.control}
-                              name="departamento"
+                              name="nivelAcesso"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Departamento</FormLabel>
+                                  <FormLabel>Nível de Acesso</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Departamento" {...field} />
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      value={field.value}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Selecione o nível" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {accessLevelOptions.map((level) => (
+                                          <SelectItem key={level.value} value={level.value}>
+                                            <div className="flex items-center gap-2">
+                                              <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
+                                              <span>{level.label} - {level.description}</span>
+                                            </div>
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
                           </div>
+                          
+                          <FormField
+                            control={form.control}
+                            name="departamento"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Departamento</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Departamento" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                           
                           <FormField
                             control={form.control}
@@ -491,15 +556,8 @@ const Settings = () => {
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
                                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1">
-                                      {(() => {
-                                        const level = accessLevels.find(level => level.value.toLowerCase() === (user.nivel_acesso || '').toLowerCase());
-                                        return (
-                                          <>
-                                            <div className={`w-2 h-2 rounded-full ${level ? level.color : 'bg-gray-400'}`}></div>
-                                            <span>{level ? level.label : user.nivel_acesso || 'Não definido'}</span>
-                                          </>
-                                        );
-                                      })()}
+                                      <div className={`w-2 h-2 rounded-full ${getNivelAcessoColorClass(user.nivel_acesso)}`}></div>
+                                      <span>{getNivelAcessoLabel(user.nivel_acesso)}</span>
                                     </span>
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap">
