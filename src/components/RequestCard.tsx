@@ -12,7 +12,8 @@ interface RequestCardProps {
 }
 
 const RequestCard: React.FC<RequestCardProps> = ({ request, className }) => {
-  const daysRemaining = getDaysRemaining(request.deadlineDate);
+  // Safely calculate days remaining if deadlineDate exists
+  const daysRemaining = request.deadlineDate ? getDaysRemaining(request.deadlineDate) : 0;
   
   return (
     <Link 
@@ -28,22 +29,22 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, className }) => {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex gap-2 mb-2">
-              <StatusBadge type="category" value={request.category} />
-              <StatusBadge type="priority" value={request.priority} />
+              {request.category && <StatusBadge type="category" value={request.category} />}
+              {request.priority && <StatusBadge type="priority" value={request.priority} />}
             </div>
-            <h3 className="text-lg font-semibold line-clamp-1">{request.application}</h3>
+            <h3 className="text-lg font-semibold line-clamp-1">{request.application || 'Sem título'}</h3>
             <p className="text-sm text-muted-foreground line-clamp-1">
-              Solicitante: {request.requesterName}
+              Solicitante: {request.requesterName || 'Não informado'}
             </p>
           </div>
-          <StatusBadge type="status" value={request.status} />
+          {request.status && <StatusBadge type="status" value={request.status} />}
         </div>
         
         <div className="border-t border-border pt-3 mt-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center text-sm text-muted-foreground">
               <FileText className="mr-1 h-4 w-4" />
-              <span>CC: {request.costCenter}</span>
+              <span>CC: {request.costCenter || 'N/A'}</span>
             </div>
             <div className="flex items-center text-sm">
               <Clock className="mr-1 h-4 w-4" />

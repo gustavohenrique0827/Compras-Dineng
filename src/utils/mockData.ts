@@ -1,4 +1,3 @@
-
 export type Status = 
   | 'Solicitado' 
   | 'Aprovado' 
@@ -292,11 +291,24 @@ export const getCategoryColor = (category: Category): string => {
   }
 };
 
-export const getDaysRemaining = (deadlineDate: string): number => {
-  const today = new Date();
-  const deadline = new Date(deadlineDate);
-  const diffTime = deadline.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+export const getDaysRemaining = (deadlineDate: string | undefined): number => {
+  if (!deadlineDate) return 0;
+  
+  try {
+    const today = new Date();
+    const deadline = new Date(deadlineDate);
+    
+    // Check if the date is valid
+    if (isNaN(deadline.getTime())) {
+      return 0;
+    }
+    
+    const diffTime = deadline.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  } catch (error) {
+    console.error('Error calculating days remaining:', error);
+    return 0;
+  }
 };
 
 export const getApprovalLevelForAmount = (amount: number): ApprovalLevel => {
