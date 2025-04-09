@@ -21,7 +21,7 @@ import Suppliers from "./pages/Suppliers";
 
 const queryClient = new QueryClient();
 
-// Componente de proteção de rotas
+// Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   
@@ -29,16 +29,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  return <Layout>{children}</Layout>;
+  return children;
 };
 
-const App = () => {
+function App() {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // Verificar autenticação ao iniciar
+    // Verify authentication on start
     const checkAuth = async () => {
-      // Simulação de verificação de token
+      // Simulating token verification
       await new Promise(resolve => setTimeout(resolve, 500));
       setLoading(false);
     };
@@ -63,16 +63,76 @@ const App = () => {
           <Routes>
             <Route path="/login" element={<Login />} />
             
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/request/new" element={<ProtectedRoute><RequestForm /></ProtectedRoute>} />
-            <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
-            <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
-            <Route path="/purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
-            <Route path="/purchases/new" element={<ProtectedRoute><QuoteForm /></ProtectedRoute>} />
-            <Route path="/purchases/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
-            <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Index />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/request/new" element={
+              <ProtectedRoute>
+                <Layout>
+                  <RequestForm />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/requests" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Requests />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/requests/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <RequestDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/purchases" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Purchases />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/purchases/new" element={
+              <ProtectedRoute>
+                <Layout>
+                  <QuoteForm />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/purchases/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <QuoteDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/suppliers" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Suppliers />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Reports />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </ProtectedRoute>
+            } />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -80,6 +140,6 @@ const App = () => {
       </TooltipProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;
