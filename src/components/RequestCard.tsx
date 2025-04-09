@@ -12,8 +12,43 @@ interface RequestCardProps {
 }
 
 const RequestCard: React.FC<RequestCardProps> = ({ request, className }) => {
-  // Safely calculate days remaining if deadlineDate exists
-  const daysRemaining = request.deadlineDate ? getDaysRemaining(request.deadlineDate) : 0;
+  // Safely calculate days remaining if deadlineDate exists and is valid
+  const daysRemaining = React.useMemo(() => {
+    try {
+      if (!request.deadlineDate) return 0;
+      
+      // Validate date before calculating days remaining
+      const testDate = new Date(request.deadlineDate);
+      if (isNaN(testDate.getTime())) {
+        console.warn(`Invalid deadline date found: ${request.deadlineDate}`);
+        return 0;
+      }
+      
+      return getDaysRemaining(request.deadlineDate);
+    } catch (error) {
+      console.error("Error calculating days remaining:", error);
+      return 0;
+    }
+  }, [request.deadlineDate]);
+  
+  // Safely format dates
+  const safeFormatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Não informado';
+    
+    try {
+      // Validate date before formatting
+      const testDate = new Date(dateString);
+      if (isNaN(testDate.getTime())) {
+        console.warn(`Invalid date found: ${dateString}`);
+        return 'Data inválida';
+      }
+      
+      return formatDate(dateString);
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return 'Data inválida';
+    }
+  };
   
   return (
     <Link 
@@ -62,9 +97,9 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, className }) => {
             </div>
           </div>
           <div className="flex items-center text-xs text-muted-foreground mt-1">
-            <span>Solicitado: {formatDate(request.requestDate)}</span>
+            <span>Solicitado: {safeFormatDate(request.requestDate)}</span>
             <span className="mx-2">•</span>
-            <span>Entrega: {formatDate(request.deliveryDeadline)}</span>
+            <span>Entrega: {safeFormatDate(request.deliveryDeadline)}</span>
           </div>
         </div>
       </div>

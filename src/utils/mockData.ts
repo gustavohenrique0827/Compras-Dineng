@@ -256,8 +256,20 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('pt-BR').format(date);
+  try {
+    const date = new Date(dateString);
+    
+    // Verify date is valid
+    if (isNaN(date.getTime())) {
+      console.warn(`Invalid date encountered when formatting: ${dateString}`);
+      return 'Data inválida';
+    }
+    
+    return new Intl.DateTimeFormat('pt-BR').format(date);
+  } catch (error) {
+    console.error(`Error formatting date: ${dateString}`, error);
+    return 'Data inválida';
+  }
 }
 
 export const getStatusColor = (status: Status): string => {
@@ -300,8 +312,13 @@ export const getDaysRemaining = (deadlineDate: string | undefined): number => {
     
     // Check if the date is valid
     if (isNaN(deadline.getTime())) {
+      console.warn(`Invalid deadline date encountered: ${deadlineDate}`);
       return 0;
     }
+    
+    // Set time to midnight to avoid time zone issues
+    today.setHours(0, 0, 0, 0);
+    deadline.setHours(0, 0, 0, 0);
     
     const diffTime = deadline.getTime() - today.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
