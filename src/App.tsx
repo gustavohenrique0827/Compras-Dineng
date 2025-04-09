@@ -5,23 +5,22 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import RequestForm from "./pages/RequestForm";
 import RequestDetail from "./pages/RequestDetail";
 import Requests from "./pages/Requests";
 import Purchases from "./pages/Purchases";
+import Suppliers from "./pages/Suppliers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import QuoteForm from "./pages/QuoteForm";
 import QuoteDetail from "./pages/QuoteDetail";
-import Suppliers from "./pages/Suppliers";
 
 const queryClient = new QueryClient();
 
-// Protected route component
+// Componente de proteção de rotas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   
@@ -29,16 +28,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  return children;
+  return <>{children}</>;
 };
 
-function App() {
+const App = () => {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // Verify authentication on start
+    // Verificar autenticação ao iniciar
     const checkAuth = async () => {
-      // Simulating token verification
+      // Simulação de verificação de token
       await new Promise(resolve => setTimeout(resolve, 500));
       setLoading(false);
     };
@@ -63,76 +62,16 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Index />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/request/new" element={
-              <ProtectedRoute>
-                <Layout>
-                  <RequestForm />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/requests" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Requests />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/requests/:id" element={
-              <ProtectedRoute>
-                <Layout>
-                  <RequestDetail />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/purchases" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Purchases />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/purchases/new" element={
-              <ProtectedRoute>
-                <Layout>
-                  <QuoteForm />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/purchases/:id" element={
-              <ProtectedRoute>
-                <Layout>
-                  <QuoteDetail />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/suppliers" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Suppliers />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/reports" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Reports />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Settings />
-                </Layout>
-              </ProtectedRoute>
-            } />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/request/new" element={<ProtectedRoute><RequestForm /></ProtectedRoute>} />
+            <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
+            <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
+            <Route path="/purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
+            <Route path="/purchases/new" element={<ProtectedRoute><QuoteForm /></ProtectedRoute>} />
+            <Route path="/purchases/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
+            <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -140,6 +79,6 @@ function App() {
       </TooltipProvider>
     </QueryClientProvider>
   );
-}
+};
 
 export default App;
