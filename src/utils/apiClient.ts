@@ -1,6 +1,5 @@
 
 import { toast } from 'sonner';
-import { isValidJSON } from './auth';
 
 // URL base da API
 const API_URL = 'http://localhost:5000/api';

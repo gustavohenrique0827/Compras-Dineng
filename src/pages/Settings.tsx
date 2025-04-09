@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -35,7 +34,6 @@ type UserFormValues = z.infer<typeof userSchema>;
 // Componente principal
 const Settings = () => {
   const [openNewUserDialog, setOpenNewUserDialog] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<number | null>(null);
   const [userToToggle, setUserToToggle] = useState<{ id: number, active: boolean } | null>(null);
   
   const queryClient = useQueryClient();
@@ -58,9 +56,12 @@ const Settings = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setOpenNewUserDialog(false);
+      toast.success("Usuário criado com sucesso!");
+      form.reset();
     },
     onError: (error) => {
       console.error('Erro ao criar usuário:', error);
+      toast.error("Erro ao criar usuário. Tente novamente.");
     }
   });
   
@@ -72,7 +73,11 @@ const Settings = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setUserToToggle(null);
+      toast.success("Status do usuário atualizado com sucesso!");
     },
+    onError: () => {
+      toast.error("Erro ao atualizar status do usuário.");
+    }
   });
   
   // Form para novo usuário
@@ -180,7 +185,9 @@ const Settings = () => {
                           </FormItem>
                         )}
                       />
-                      
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="cargo"
@@ -189,7 +196,7 @@ const Settings = () => {
                             <FormLabel>Cargo</FormLabel>
                             <Select 
                               onValueChange={field.onChange} 
-                              value={field.value}
+                              defaultValue={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -219,8 +226,8 @@ const Settings = () => {
                           <FormItem>
                             <FormLabel>Nível de Acesso</FormLabel>
                             <Select 
-                              onValueChange={field.onChange} 
-                              value={field.value}
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -234,7 +241,7 @@ const Settings = () => {
                                     <SelectItem key={level.value} value={level.value}>
                                       <div className="flex items-center gap-2">
                                         <div className={`w-3 h-3 rounded-full ${level.color}`} />
-                                        <span>{level.label} - {level.description}</span>
+                                        <span>{level.label}</span>
                                       </div>
                                     </SelectItem>
                                   ))}
@@ -245,7 +252,9 @@ const Settings = () => {
                           </FormItem>
                         )}
                       />
-                      
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="departamento"
@@ -273,7 +282,9 @@ const Settings = () => {
                           </FormItem>
                         )}
                       />
-                      
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="senha"
