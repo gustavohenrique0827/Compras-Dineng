@@ -5,18 +5,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import Layout from "./components/Layout";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import RequestForm from "./pages/RequestForm";
 import RequestDetail from "./pages/RequestDetail";
 import Requests from "./pages/Requests";
 import Purchases from "./pages/Purchases";
-import Suppliers from "./pages/Suppliers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import QuoteForm from "./pages/QuoteForm";
 import QuoteDetail from "./pages/QuoteDetail";
+import Suppliers from "./pages/Suppliers";
 
 const queryClient = new QueryClient();
 
@@ -28,7 +29,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
   
-  return <>{children}</>;
+  return <Layout>{children}</Layout>;
 };
 
 const App = () => {
