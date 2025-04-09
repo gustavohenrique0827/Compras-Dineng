@@ -104,6 +104,66 @@ export const accessLevelOptions = [
   { value: 'amarelo', label: 'Amarelo', description: 'Levantador / Encarregado', color: 'bg-yellow-500' },
 ];
 
+// Mapeamento de níveis para permissões
+export const nivelPermissoes = {
+  'verde': {
+    nivel: 'verde',
+    descricao: 'Gerência / Diretoria',
+    permissoes: {
+      compra_impeditivos: 1,
+      compra_consumo: 1,
+      compra_estoque: 1,
+      compra_locais: 1,
+      compra_investimentos: 1,
+      compra_alojamentos: 1,
+      compra_supermercados: 1,
+      aprova_solicitacao: 1
+    }
+  },
+  'azul': {
+    nivel: 'azul',
+    descricao: 'Supervisão / Segurança',
+    permissoes: {
+      compra_impeditivos: 1,
+      compra_consumo: 1,
+      compra_estoque: 1,
+      compra_locais: 1,
+      compra_investimentos: 1,
+      compra_alojamentos: 0,
+      compra_supermercados: 0,
+      aprova_solicitacao: 1
+    }
+  },
+  'marrom': {
+    nivel: 'marrom',
+    descricao: 'Coordenação',
+    permissoes: {
+      compra_impeditivos: 1,
+      compra_consumo: 1,
+      compra_estoque: 1,
+      compra_locais: 1,
+      compra_investimentos: 0,
+      compra_alojamentos: 0,
+      compra_supermercados: 0,
+      aprova_solicitacao: 1
+    }
+  },
+  'amarelo': {
+    nivel: 'amarelo',
+    descricao: 'Levantador / Encarregado',
+    permissoes: {
+      compra_impeditivos: 1,
+      compra_consumo: 1,
+      compra_estoque: 1,
+      compra_locais: 0,
+      compra_investimentos: 0,
+      compra_alojamentos: 0,
+      compra_supermercados: 0,
+      aprova_solicitacao: 0
+    }
+  }
+};
+
 // Cargos e seus níveis de acesso correspondentes (mantido para compatibilidade)
 export const accessLevels = [
   { value: 'Administrador', label: 'Administrador', description: 'Nível Verde - Acesso total ao sistema', color: 'bg-green-500', nivel: 'verde' },
@@ -175,5 +235,51 @@ export const isValidJSON = async (response: Response): Promise<boolean> => {
     return true;
   } catch (error) {
     return false;
+  }
+};
+
+// Função para tratar resposta da API de forma segura
+export const handleApiResponse = async (response: Response) => {
+  if (!response.ok) {
+    // Tentar obter mensagem de erro do servidor
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`);
+      } else {
+        const textError = await response.text();
+        if (textError) {
+          throw new Error(`Erro ${response.status}: ${textError.substring(0, 100)}`);
+        } else {
+          throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        }
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+  }
+
+  // Se for uma resposta vazia ou no-content, retorne um objeto vazio
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return { success: true };
+  }
+
+  // Tentar parsear como JSON
+  try {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    } else {
+      // Se não for JSON, retorne o texto da resposta
+      const text = await response.text();
+      return { success: true, message: text };
+    }
+  } catch (error) {
+    console.error('Erro ao processar resposta:', error);
+    throw new Error('Erro ao processar resposta do servidor');
   }
 };
