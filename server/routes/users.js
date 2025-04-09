@@ -3,15 +3,15 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
-// Função para obter nível de acesso baseado no cargo
-const getNivelAcessoByCargo = (cargo) => {
-  const cargoLower = cargo.toLowerCase();
+// Função para obter permissões baseado no nível de acesso
+const getPermissoesByNivel = (nivel) => {
+  const nivelLower = nivel.toLowerCase();
   
-  // Mapeamento de cargos para níveis de acesso
-  const niveisAcesso = {
-    'administrador': {
+  // Mapeamento de níveis para permissões
+  const permissoes = {
+    'verde': {
       nivel: 'verde',
-      descricao: 'Administrador',
+      descricao: 'Gerência / Diretoria',
       permissoes: {
         compra_impeditivos: 1,
         compra_consumo: 1,
@@ -23,9 +23,9 @@ const getNivelAcessoByCargo = (cargo) => {
         aprova_solicitacao: 1
       }
     },
-    'gerente': {
+    'azul': {
       nivel: 'azul',
-      descricao: 'Gerente',
+      descricao: 'Supervisão / Segurança',
       permissoes: {
         compra_impeditivos: 1,
         compra_consumo: 1,
@@ -37,23 +37,23 @@ const getNivelAcessoByCargo = (cargo) => {
         aprova_solicitacao: 1
       }
     },
-    'supervisor': {
+    'marrom': {
       nivel: 'marrom',
-      descricao: 'Supervisor',
+      descricao: 'Coordenação',
       permissoes: {
         compra_impeditivos: 1,
         compra_consumo: 1,
         compra_estoque: 1,
-        compra_locais: 0,
+        compra_locais: 1,
         compra_investimentos: 0,
         compra_alojamentos: 0,
         compra_supermercados: 0,
         aprova_solicitacao: 1
       }
     },
-    'comprador': {
+    'amarelo': {
       nivel: 'amarelo',
-      descricao: 'Comprador',
+      descricao: 'Levantador / Encarregado',
       permissoes: {
         compra_impeditivos: 1,
         compra_consumo: 1,
@@ -67,8 +67,30 @@ const getNivelAcessoByCargo = (cargo) => {
     }
   };
 
-  // Retorna o nível de acesso correspondente ou null se não encontrar
-  return niveisAcesso[cargoLower] || null;
+  return permissoes[nivelLower] || null;
+};
+
+// Função para obter nível de acesso baseado no cargo (função de compatibilidade)
+const getNivelAcessoByCargo = (cargo) => {
+  const cargoLower = cargo.toLowerCase();
+  
+  // Mapeamento de cargos para níveis de acesso
+  const cargoParaNivel = {
+    'administrador': 'verde',
+    'diretor': 'verde',
+    'diretoria': 'verde',
+    'gerente': 'verde',
+    'supervisor': 'azul',
+    'segurança': 'azul',
+    'coordenador': 'marrom',
+    'coordenação': 'marrom',
+    'comprador': 'amarelo',
+    'levantador': 'amarelo',
+    'encarregado': 'amarelo'
+  };
+  
+  const nivel = cargoParaNivel[cargoLower] || 'amarelo';
+  return getPermissoesByNivel(nivel);
 };
 
 // GET TODOS FUNCIONÁRIOS
@@ -76,7 +98,7 @@ router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
-             n.descricao AS nivel_acesso, n.permissoes
+             n.descricao AS nivel_acesso, n.nivel, n.permissoes
       FROM tb_funcionarios f LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
     `);
     res.json(rows);
@@ -91,7 +113,7 @@ router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
-             n.descricao AS nivel_acesso, n.permissoes
+             n.descricao AS nivel_acesso, n.nivel, n.permissoes
       FROM tb_funcionarios f LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
       WHERE f.id = ?
     `, [req.params.id]);
@@ -113,7 +135,7 @@ router.post('/login', async (req, res) => {
   try {
     const [users] = await pool.query(`
       SELECT f.id, f.nome, f.email, f.cargo, f.status, f.departamento, f.matricula,
-             n.descricao AS nivel_acesso
+             n.descricao AS nivel_acesso, n.nivel
       FROM tb_funcionarios f
       LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
       WHERE f.email = ? AND f.senha = ? AND f.status = 1
@@ -153,6 +175,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         cargo: user.cargo,
         nivel_acesso: user.nivel_acesso,
+        nivel: user.nivel,
         departamento: user.departamento,
         matricula: user.matricula,
         permissoes: user.permissoes
@@ -203,7 +226,7 @@ router.post('/', async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const { nome, email, cargo, status, departamento, senha, matricula, ativo } = req.body;
+    const { nome, email, cargo, status, departamento, senha, matricula, ativo, nivelAcesso } = req.body;
 
     // Use status OR ativo flag
     const isActive = status !== undefined ? (status === 1 || status === true) : 
@@ -215,7 +238,8 @@ router.post('/', async (req, res) => {
       cargo, 
       status: isActive ? 1 : 0, 
       departamento, 
-      matricula 
+      matricula,
+      nivelAcesso
     });
 
     // Validar campos obrigatórios
@@ -239,16 +263,22 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Obter nível de acesso baseado no cargo
-    const nivelAcesso = getNivelAcessoByCargo(cargo);
-    if (!nivelAcesso) {
+    // Obter permissões baseado no nível de acesso selecionado ou cargo
+    let permissoesInfo;
+    if (nivelAcesso) {
+      permissoesInfo = getPermissoesByNivel(nivelAcesso);
+    } else {
+      permissoesInfo = getNivelAcessoByCargo(cargo);
+    }
+    
+    if (!permissoesInfo) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Cargo inválido' 
+        message: 'Nível de acesso inválido' 
       });
     }
 
-    console.log('Nível de acesso:', nivelAcesso);
+    console.log('Nível de acesso:', permissoesInfo);
 
     // Inserir funcionário
     const [result] = await connection.query(
@@ -263,34 +293,73 @@ router.post('/', async (req, res) => {
       const [tableInfo] = await connection.query('DESCRIBE nivel_acesso');
       console.log('Estrutura da tabela nivel_acesso:', tableInfo);
 
-      // Inserir nível de acesso
-      if (tableInfo.some(column => column.Field === 'permissoes')) {
-        // Nova estrutura
-        await connection.query(
-          'INSERT INTO nivel_acesso (mat_funcionario, nivel, descricao, permissoes) VALUES (?, ?, ?, ?)',
-          [matricula, nivelAcesso.nivel, nivelAcesso.descricao, JSON.stringify(nivelAcesso.permissoes)]
-        );
+      // Verificar se já existe um registro para a matrícula
+      const [existingNivel] = await connection.query(
+        'SELECT * FROM nivel_acesso WHERE mat_funcionario = ?',
+        [matricula]
+      );
+
+      if (existingNivel.length > 0) {
+        // Atualizar nível de acesso existente
+        if (tableInfo.some(column => column.Field === 'permissoes')) {
+          // Nova estrutura
+          await connection.query(
+            'UPDATE nivel_acesso SET nivel = ?, descricao = ?, permissoes = ? WHERE mat_funcionario = ?',
+            [permissoesInfo.nivel, permissoesInfo.descricao, JSON.stringify(permissoesInfo.permissoes), matricula]
+          );
+        } else {
+          // Estrutura antiga
+          await connection.query(
+            `UPDATE nivel_acesso SET 
+              nivel = ?, descricao = ?,
+              compra_impeditivos = ?, compra_consumo = ?, compra_estoque = ?,
+              compra_locais = ?, compra_investimentos = ?, compra_alojamentos = ?,
+              compra_supermercados = ?, aprova_solicitacao = ?
+             WHERE mat_funcionario = ?`,
+            [
+              permissoesInfo.nivel, permissoesInfo.descricao,
+              permissoesInfo.permissoes.compra_impeditivos,
+              permissoesInfo.permissoes.compra_consumo,
+              permissoesInfo.permissoes.compra_estoque,
+              permissoesInfo.permissoes.compra_locais,
+              permissoesInfo.permissoes.compra_investimentos,
+              permissoesInfo.permissoes.compra_alojamentos,
+              permissoesInfo.permissoes.compra_supermercados,
+              permissoesInfo.permissoes.aprova_solicitacao,
+              matricula
+            ]
+          );
+        }
       } else {
-        // Estrutura antiga
-        await connection.query(
-          `INSERT INTO nivel_acesso (
-            mat_funcionario, nivel, descricao,
-            compra_impeditivos, compra_consumo, compra_estoque,
-            compra_locais, compra_investimentos, compra_alojamentos,
-            compra_supermercados, aprova_solicitacao
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            matricula, nivelAcesso.nivel, nivelAcesso.descricao,
-            nivelAcesso.permissoes.compra_impeditivos,
-            nivelAcesso.permissoes.compra_consumo,
-            nivelAcesso.permissoes.compra_estoque,
-            nivelAcesso.permissoes.compra_locais,
-            nivelAcesso.permissoes.compra_investimentos,
-            nivelAcesso.permissoes.compra_alojamentos,
-            nivelAcesso.permissoes.compra_supermercados,
-            nivelAcesso.permissoes.aprova_solicitacao
-          ]
-        );
+        // Inserir nível de acesso
+        if (tableInfo.some(column => column.Field === 'permissoes')) {
+          // Nova estrutura
+          await connection.query(
+            'INSERT INTO nivel_acesso (mat_funcionario, nivel, descricao, permissoes) VALUES (?, ?, ?, ?)',
+            [matricula, permissoesInfo.nivel, permissoesInfo.descricao, JSON.stringify(permissoesInfo.permissoes)]
+          );
+        } else {
+          // Estrutura antiga
+          await connection.query(
+            `INSERT INTO nivel_acesso (
+              mat_funcionario, nivel, descricao,
+              compra_impeditivos, compra_consumo, compra_estoque,
+              compra_locais, compra_investimentos, compra_alojamentos,
+              compra_supermercados, aprova_solicitacao
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              matricula, permissoesInfo.nivel, permissoesInfo.descricao,
+              permissoesInfo.permissoes.compra_impeditivos,
+              permissoesInfo.permissoes.compra_consumo,
+              permissoesInfo.permissoes.compra_estoque,
+              permissoesInfo.permissoes.compra_locais,
+              permissoesInfo.permissoes.compra_investimentos,
+              permissoesInfo.permissoes.compra_alojamentos,
+              permissoesInfo.permissoes.compra_supermercados,
+              permissoesInfo.permissoes.aprova_solicitacao
+            ]
+          );
+        }
       }
     } catch (tableError) {
       console.error('Erro ao manipular nivel_acesso (continuando):', tableError);
@@ -304,7 +373,7 @@ router.post('/', async (req, res) => {
     // Buscar usuário criado
     const [newUser] = await connection.query(
       `SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
-              n.descricao AS nivel_acesso
+              n.descricao AS nivel_acesso, n.nivel
        FROM tb_funcionarios f
        LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
        WHERE f.id = ?`,
@@ -333,13 +402,17 @@ router.post('/', async (req, res) => {
 
 // ATUALIZAR FUNCIONÁRIO
 router.put('/:id', async (req, res) => {
-  const { nome, email, cargo, status, departamento, senha, matricula, ativo } = req.body;
+  const { nome, email, cargo, status, departamento, senha, matricula, ativo, nivelAcesso } = req.body;
   
   // Use status OR ativo flag
   const isActive = status !== undefined ? (status === 1 || status === true) : 
                   (ativo !== undefined ? ativo : true);
   
+  const connection = await pool.getConnection();
+  
   try {
+    await connection.beginTransaction();
+    
     let query = `
       UPDATE tb_funcionarios 
       SET nome = ?, email = ?, cargo = ?, status = ?, departamento = ?, matricula = ?
@@ -356,45 +429,95 @@ router.put('/:id', async (req, res) => {
       params = [nome, email, cargo, isActive ? 1 : 0, departamento, matricula, senha, req.params.id];
     }
 
-    await pool.query(query, params);
+    await connection.query(query, params);
     
-    // Atualizar o nível de acesso se o cargo foi alterado
-    const nivelAcesso = getNivelAcessoByCargo(cargo);
+    // Atualizar o nível de acesso
+    // Obter permissões baseado no nível de acesso selecionado ou cargo
+    let permissoesInfo;
     if (nivelAcesso) {
+      permissoesInfo = getPermissoesByNivel(nivelAcesso);
+    } else {
+      permissoesInfo = getNivelAcessoByCargo(cargo);
+    }
+    
+    if (permissoesInfo) {
       try {
-        const [exists] = await pool.query(
+        const [exists] = await connection.query(
           'SELECT 1 FROM nivel_acesso WHERE mat_funcionario = ?',
           [matricula]
         );
 
         if (exists.length > 0) {
-          // Atualizar
-          await pool.query(`
-            UPDATE nivel_acesso SET
-              nivel = ?,
-              descricao = ?
-            WHERE mat_funcionario = ?
-          `, [nivelAcesso.nivel, nivelAcesso.descricao, matricula]);
+          // Verificar estrutura da tabela nivel_acesso
+          const [tableInfo] = await connection.query('DESCRIBE nivel_acesso');
+          
+          if (tableInfo.some(column => column.Field === 'permissoes')) {
+            // Nova estrutura
+            await connection.query(
+              'UPDATE nivel_acesso SET nivel = ?, descricao = ?, permissoes = ? WHERE mat_funcionario = ?',
+              [permissoesInfo.nivel, permissoesInfo.descricao, JSON.stringify(permissoesInfo.permissoes), matricula]
+            );
+          } else {
+            // Estrutura antiga
+            await connection.query(`
+              UPDATE nivel_acesso SET
+                nivel = ?,
+                descricao = ?,
+                compra_impeditivos = ?,
+                compra_consumo = ?,
+                compra_estoque = ?,
+                compra_locais = ?,
+                compra_investimentos = ?,
+                compra_alojamentos = ?,
+                compra_supermercados = ?,
+                aprova_solicitacao = ?
+              WHERE mat_funcionario = ?
+            `, [
+              permissoesInfo.nivel,
+              permissoesInfo.descricao,
+              permissoesInfo.permissoes.compra_impeditivos,
+              permissoesInfo.permissoes.compra_consumo,
+              permissoesInfo.permissoes.compra_estoque,
+              permissoesInfo.permissoes.compra_locais,
+              permissoesInfo.permissoes.compra_investimentos,
+              permissoesInfo.permissoes.compra_alojamentos,
+              permissoesInfo.permissoes.compra_supermercados,
+              permissoesInfo.permissoes.aprova_solicitacao,
+              matricula
+            ]);
+          }
         } else {
           // Inserir
-          await pool.query(`
-            INSERT INTO nivel_acesso (
-              mat_funcionario, nivel, descricao, 
-              compra_impeditivos, compra_consumo, compra_estoque,
-              compra_locais, compra_investimentos, compra_alojamentos,
-              compra_supermercados, aprova_solicitacao
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
-            matricula, nivelAcesso.nivel, nivelAcesso.descricao,
-            nivelAcesso.permissoes.compra_impeditivos,
-            nivelAcesso.permissoes.compra_consumo,
-            nivelAcesso.permissoes.compra_estoque,
-            nivelAcesso.permissoes.compra_locais,
-            nivelAcesso.permissoes.compra_investimentos,
-            nivelAcesso.permissoes.compra_alojamentos,
-            nivelAcesso.permissoes.compra_supermercados,
-            nivelAcesso.permissoes.aprova_solicitacao
-          ]);
+          // Verificar estrutura da tabela nivel_acesso
+          const [tableInfo] = await connection.query('DESCRIBE nivel_acesso');
+          
+          if (tableInfo.some(column => column.Field === 'permissoes')) {
+            // Nova estrutura
+            await connection.query(
+              'INSERT INTO nivel_acesso (mat_funcionario, nivel, descricao, permissoes) VALUES (?, ?, ?, ?)',
+              [matricula, permissoesInfo.nivel, permissoesInfo.descricao, JSON.stringify(permissoesInfo.permissoes)]
+            );
+          } else {
+            // Estrutura antiga
+            await connection.query(`
+              INSERT INTO nivel_acesso (
+                mat_funcionario, nivel, descricao, 
+                compra_impeditivos, compra_consumo, compra_estoque,
+                compra_locais, compra_investimentos, compra_alojamentos,
+                compra_supermercados, aprova_solicitacao
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+              matricula, permissoesInfo.nivel, permissoesInfo.descricao,
+              permissoesInfo.permissoes.compra_impeditivos,
+              permissoesInfo.permissoes.compra_consumo,
+              permissoesInfo.permissoes.compra_estoque,
+              permissoesInfo.permissoes.compra_locais,
+              permissoesInfo.permissoes.compra_investimentos,
+              permissoesInfo.permissoes.compra_alojamentos,
+              permissoesInfo.permissoes.compra_supermercados,
+              permissoesInfo.permissoes.aprova_solicitacao
+            ]);
+          }
         }
       } catch (nivelError) {
         console.error('Erro ao atualizar nível de acesso (não crítico):', nivelError);
@@ -402,10 +525,14 @@ router.put('/:id', async (req, res) => {
       }
     }
     
+    await connection.commit();
     res.status(200).json({ success: true, message: 'Funcionário atualizado com sucesso' });
   } catch (err) {
+    await connection.rollback();
     console.error('Erro ao atualizar funcionário:', err);
     res.status(500).json({ success: false, message: 'Erro ao atualizar funcionário' });
+  } finally {
+    connection.release();
   }
 });
 

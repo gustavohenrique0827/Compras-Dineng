@@ -7,7 +7,8 @@ export interface User {
   nome: string;
   email: string;
   cargo: string;
-  nivel_acesso: 'amarelo' | 'azul' | 'marrom' | 'verde';
+  nivel_acesso: string;
+  nivel?: 'amarelo' | 'azul' | 'marrom' | 'verde';
   ativo: boolean;
   departamento?: string;
   matricula?: string;
@@ -80,7 +81,30 @@ export const logout = (): void => {
   toast.success('Logout realizado com sucesso!');
 };
 
-// Cargos e seus níveis de acesso correspondentes
+// Opções de cargo disponíveis
+export const availablePositions = [
+  { value: 'Administrador', label: 'Administrador' },
+  { value: 'Gerente', label: 'Gerente' },
+  { value: 'Diretor', label: 'Diretor' },
+  { value: 'Diretoria', label: 'Diretoria' },
+  { value: 'Supervisor', label: 'Supervisor' },
+  { value: 'Segurança', label: 'Segurança' },
+  { value: 'Coordenador', label: 'Coordenador' },
+  { value: 'Coordenação', label: 'Coordenação' },
+  { value: 'Comprador', label: 'Comprador' },
+  { value: 'Levantador', label: 'Levantador' },
+  { value: 'Encarregado', label: 'Encarregado' },
+];
+
+// Opções de nível de acesso
+export const accessLevelOptions = [
+  { value: 'verde', label: 'Verde', description: 'Gerência / Diretoria', color: 'bg-green-500' },
+  { value: 'azul', label: 'Azul', description: 'Supervisão / Segurança', color: 'bg-blue-500' },
+  { value: 'marrom', label: 'Marrom', description: 'Coordenação', color: 'bg-amber-800' },
+  { value: 'amarelo', label: 'Amarelo', description: 'Levantador / Encarregado', color: 'bg-yellow-500' },
+];
+
+// Cargos e seus níveis de acesso correspondentes (mantido para compatibilidade)
 export const accessLevels = [
   { value: 'Administrador', label: 'Administrador', description: 'Nível Verde - Acesso total ao sistema', color: 'bg-green-500', nivel: 'verde' },
   { value: 'Gerente', label: 'Gerente', description: 'Nível Verde - Acesso total ao sistema', color: 'bg-green-500', nivel: 'verde' },
@@ -101,6 +125,34 @@ export const getNivelAcessoByCargo = (cargo: string): string => {
     level.value.toLowerCase() === cargo.toLowerCase()
   );
   return cargoInfo ? cargoInfo.nivel : 'amarelo'; // Default para o nível mais baixo
+};
+
+// Obter cor para um nível de acesso
+export const getNivelAcessoColorClass = (nivel: string | undefined): string => {
+  if (!nivel) return 'bg-gray-300';
+  
+  const nivelLower = nivel.toLowerCase();
+  
+  if (nivelLower.includes('verde') || nivelLower === 'verde') return 'bg-green-500';
+  if (nivelLower.includes('azul') || nivelLower === 'azul') return 'bg-blue-500';
+  if (nivelLower.includes('marrom') || nivelLower === 'marrom') return 'bg-amber-800';
+  if (nivelLower.includes('amarelo') || nivelLower === 'amarelo') return 'bg-yellow-500';
+  
+  return 'bg-gray-300';
+};
+
+// Obter label para um nível de acesso
+export const getNivelAcessoLabel = (nivel: string | undefined): string => {
+  if (!nivel) return 'Não definido';
+  
+  const nivelLower = nivel.toLowerCase();
+  
+  if (nivelLower.includes('verde') || nivelLower === 'verde') return 'Gerência / Diretoria';
+  if (nivelLower.includes('azul') || nivelLower === 'azul') return 'Supervisão / Segurança';
+  if (nivelLower.includes('marrom') || nivelLower === 'marrom') return 'Coordenação';
+  if (nivelLower.includes('amarelo') || nivelLower === 'amarelo') return 'Levantador / Encarregado';
+  
+  return nivel;
 };
 
 // Cores dos níveis de autorização
