@@ -15,27 +15,19 @@ const TopBar = () => {
       <div className="flex items-center">
         {isMobile ? (
           <Button variant="ghost" size="icon" onClick={() => setOpenMobile(true)}>
-            <span className="sr-only">Toggle menu</span>
-            <span className="h-5 w-5 flex items-center justify-center">
-              <Menu className="h-5 w-5" />
-            </span>
+            <span className="sr-only">Abrir menu</span>
+            <Menu className="h-5 w-5" />
           </Button>
         ) : (
           <SidebarTrigger className="mr-2" />
         )}
-        <h1 className="text-lg font-semibold md:hidden">Dineng Compras</h1>
+        {isMobile && <h1 className="text-lg font-semibold ml-2">Dineng Compras</h1>}
       </div>
       
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </Button>
-        
-        <Button variant="ghost" size="icon" asChild>
-          <a href="/settings">
-            <Settings className="h-5 w-5" />
-          </a>
         </Button>
         
         <UserMenu />

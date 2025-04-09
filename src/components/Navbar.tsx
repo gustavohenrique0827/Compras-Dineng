@@ -33,7 +33,6 @@ const navItems = [
   { to: '/purchases', icon: <FileText size={20} />, label: 'Cotações' },
   { to: '/suppliers', icon: <Users size={20} />, label: 'Fornecedores' },
   { to: '/reports', icon: <BarChart3 size={20} />, label: 'Relatórios' },
-  { to: '/settings', icon: <Settings size={20} />, label: 'Configurações' }
 ];
 
 const Navbar: React.FC = () => {
@@ -57,7 +56,6 @@ const Navbar: React.FC = () => {
   if (isMobile) {
     return (
       <>
-        {/* Mobile slide-out menu */}
         {openMobile && (
           <div className="fixed inset-0 bg-background z-40 pt-16 animate-fadeIn">
             <div className="p-3">
@@ -85,6 +83,20 @@ const Navbar: React.FC = () => {
                     <span className="font-medium">{item.label}</span>
                   </Link>
                 ))}
+
+                <Link
+                  to="/settings"
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 mt-auto",
+                    isActive('/settings') 
+                      ? "bg-primary text-primary-foreground" 
+                      : "text-foreground hover:bg-secondary"
+                  )}
+                  onClick={handleNavItemClick}
+                >
+                  <Settings size={20} />
+                  <span className="font-medium">Configurações</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -124,7 +136,22 @@ const Navbar: React.FC = () => {
         </SidebarMenu>
       </SidebarContent>
       
-      <SidebarFooter>
+      <SidebarFooter className="mt-auto">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              asChild 
+              isActive={isActive('/settings')}
+              tooltip="Configurações"
+            >
+              <Link to="/settings">
+                <Settings size={20} />
+                <span>Configurações</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        
         <div className="px-4 py-2 text-xs text-muted-foreground">
           Dineng Compras © {new Date().getFullYear()}
         </div>
