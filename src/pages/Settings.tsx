@@ -1,136 +1,83 @@
 
 import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Users,
-  Building2,
-  CreditCard,
-  FileText,
-  Settings as SettingsIcon,
-  UserPlus,
-  Shield,
-  Edit,
-  Trash2
-} from 'lucide-react';
-import Navbar from '@/components/Navbar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { useForm } from 'react-hook-form';
+import { PlusCircle, Save, UserPlus } from 'lucide-react';
+import { availablePositions, accessLevelOptions, getNivelAcessoColorClass, getNivelAcessoLabel } from '@/utils/auth';
 import { toast } from 'sonner';
+import { SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { accessLevels, getNivelAcessoByCargo } from '@/utils/auth';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import CostCenterDialog from '@/components/cost-center/CostCenterDialog';
+import { userService } from '@/utils/apiClient';
 
-const userFormSchema = z.object({
-  nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("Email inválido"),
-  cargo: z.string().min(1, "Cargo é obrigatório"),
-  nivelAcesso: z.string().min(1, "Nível de acesso é obrigatório"),
+const userSchema = z.object({
+  nome: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres'),
+  email: z.string().email('Email inválido'),
+  cargo: z.string().min(1, 'Selecione um cargo'),
+  nivelAcesso: z.string().min(1, 'Selecione um nível de acesso'),
   departamento: z.string().optional(),
-  matricula: z.string().min(1, "Matrícula é obrigatória"),
+  matricula: z.string().min(1, 'Informe a matrícula'),
   ativo: z.boolean().default(true),
-  senha: z.string().min(6, "Senha deve ter pelo menos 6 caracteres")
+  senha: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres')
 });
 
-type UserFormValues = z.infer<typeof userFormSchema>;
+type UserFormValues = z.infer<typeof userSchema>;
 
-// Lista de cargos disponíveis
-const availablePositions = [
-  { value: 'Diretor', label: 'Diretor' },
-  { value: 'Gerente', label: 'Gerente' },
-  { value: 'Coordenador', label: 'Coordenador' },
-  { value: 'Supervisor', label: 'Supervisor' },
-  { value: 'Analista', label: 'Analista' },
-  { value: 'Assistente', label: 'Assistente' },
-  { value: 'Estagiário', label: 'Estagiário' },
-  { value: 'Administrador', label: 'Administrador' },
-  { value: 'Comprador', label: 'Comprador' },
-  { value: 'Levantador', label: 'Levantador' },
-  { value: 'Encarregado', label: 'Encarregado' },
-  { value: 'Segurança', label: 'Segurança' },
-];
-
-// Níveis de acesso
-const accessLevelOptions = [
-  { value: 'verde', label: 'Verde', description: 'Diretoria e Gerência', color: 'bg-green-500' },
-  { value: 'azul', label: 'Azul', description: 'Supervisão e Segurança', color: 'bg-blue-500' },
-  { value: 'marrom', label: 'Marrom', description: 'Coordenação', color: 'bg-amber-800' },
-  { value: 'amarelo', label: 'Amarelo', description: 'Levantador e Encarregado', color: 'bg-yellow-500' },
-];
-
+// Componente principal
 const Settings = () => {
-  const isMobile = useIsMobile();
-  const [userDialogOpen, setUserDialogOpen] = useState(false);
-  const [costCenterDialogOpen, setCostCenterDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const isAdmin = true;
+  const [openNewUserDialog, setOpenNewUserDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<number | null>(null);
+  const [userToToggle, setUserToToggle] = useState<{ id: number, active: boolean } | null>(null);
+  
   const queryClient = useQueryClient();
-
-  const { data: users = [], isLoading, refetch: refetchUsers } = useQuery({
+  
+  // Consulta para obter usuários
+  const { data: users = [], isLoading, error } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL || '';
-        console.log('Fetching users from:', `${apiUrl}/api/users`);
-        
-        const response = await fetch(`${apiUrl}/api/users`);
-        
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status} ${response.statusText}`);
-        }
-        
-        const text = await response.text();
-        try {
-          return JSON.parse(text);
-        } catch (parseError) {
-          console.error('Failed to parse response as JSON:', text.substring(0, 100));
-          return [];
-        }
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
-        return [];
-      }
+      console.log('Fetching users from: /api/users');
+      const userData = await userService.getAllUsers();
+      return userData || [];
     },
-    enabled: isAdmin
   });
-
-  const { data: costCenters = [], isLoading: isLoadingCostCenters } = useQuery({
-    queryKey: ['costCenters'],
-    queryFn: async () => {
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL || '';
-        const response = await fetch(`${apiUrl}/api/cost-centers`);
-        
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status} ${response.statusText}`);
-        }
-        
-        const text = await response.text();
-        try {
-          return JSON.parse(text);
-        } catch (parseError) {
-          console.error('Failed to parse response as JSON:', text.substring(0, 100));
-          return [];
-        }
-      } catch (error) {
-        console.error('Failed to fetch cost centers:', error);
-        return [];
-      }
+  
+  // Mutação para criar um novo usuário
+  const createUserMutation = useMutation({
+    mutationFn: (userData: UserFormValues) => {
+      return userService.createUser(userData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setOpenNewUserDialog(false);
+    },
+    onError: (error) => {
+      console.error('Erro ao criar usuário:', error);
     }
   });
-
+  
+  // Mutação para alternar o status do usuário
+  const toggleUserStatusMutation = useMutation({
+    mutationFn: ({ id, active }: { id: number, active: boolean }) => {
+      return userService.toggleUserStatus(id, active);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setUserToToggle(null);
+    },
+  });
+  
+  // Form para novo usuário
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(userSchema),
     defaultValues: {
       nome: '',
       email: '',
@@ -142,831 +89,449 @@ const Settings = () => {
       senha: ''
     }
   });
-
-  const onSubmitUser = async (data: UserFormValues) => {
+  
+  // Manipulador para enviar o formulário de novo usuário
+  const onSubmitUser: SubmitHandler<UserFormValues> = async (data) => {
     try {
-      setIsSubmitting(true);
-      setSubmitError(null);
-      
-      const apiUrl = import.meta.env.VITE_API_URL || '';
-      console.log('Submitting user to:', `${apiUrl}/api/users`);
+      console.log('Submitting user to: /api/users');
       console.log('User data:', data);
-
-      // Ensure all data is properly formatted
-      const userData = {
-        nome: data.nome,
-        email: data.email,
-        cargo: data.cargo,
-        nivel_acesso: data.nivelAcesso,
-        departamento: data.departamento || '',
-        matricula: data.matricula,
-        senha: data.senha,
-        ativo: data.ativo ? 1 : 0, 
-        status: data.ativo ? 1 : 0 // Include status field as well (for backward compatibility)
-      };
-
-      const response = await fetch(`${apiUrl}/api/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(userData)
-      });
-
-      // Read the response as text first
-      const responseText = await response.text();
       
-      // Try to parse it as JSON
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError, 'Response text:', responseText);
-        throw new Error(`Resposta não pode ser processada: ${responseText.substring(0, 100)}...`);
-      }
-
-      if (!response.ok) {
-        throw new Error(responseData.message || `Erro ${response.status}: ${response.statusText}`);
-      }
-
-      toast.success('Usuário criado com sucesso!');
-      setUserDialogOpen(false);
-      form.reset();
-
-      // Recarregar lista de usuários
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    } catch (error: any) {
+      await createUserMutation.mutateAsync(data);
+    } catch (error) {
       console.error('Erro ao criar usuário:', error);
-      setSubmitError(error.message || 'Erro ao criar usuário');
-      toast.error(error.message || 'Erro ao criar usuário');
-    } finally {
-      setIsSubmitting(false);
     }
   };
-
-  const handleUserStatusChange = async (userId: number, newStatus: boolean) => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || '';
-      
-      console.log('Changing user status:', `${apiUrl}/api/users/${userId}/status`, { ativo: newStatus });
-      
-      const response = await fetch(`${apiUrl}/api/users/${userId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ 
-          ativo: newStatus,
-          status: newStatus ? 1 : 0 // Include both formats to ensure compatibility
-        })
-      });
-
-      // Handle potential non-JSON responses
-      const responseText = await response.text();
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError, 'Response text:', responseText);
-        throw new Error('Erro ao processar resposta do servidor');
-      }
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Erro ao alterar status do usuário');
-      }
-
-      toast.success(newStatus ? 'Usuário ativado com sucesso!' : 'Usuário desativado com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    } catch (error: any) {
-      console.error('Error changing user status:', error);
-      toast.error(error.message || 'Erro ao alterar status do usuário');
-    }
+  
+  // Manipulador para fechar o diálogo e redefinir o formulário
+  const handleCloseDialog = () => {
+    setOpenNewUserDialog(false);
+    form.reset();
   };
-
-  const getNivelAcessoColorClass = (nivel: string) => {
-    const level = accessLevelOptions.find(option => option.value === nivel);
-    return level ? level.color : 'bg-gray-400';
+  
+  // Manipulador para alternar o status do usuário
+  const handleToggleUserStatus = (id: number, currentStatus: boolean) => {
+    setUserToToggle({ id, active: !currentStatus });
   };
-
-  const getNivelAcessoLabel = (nivel: string) => {
-    const level = accessLevelOptions.find(option => option.value === nivel);
-    return level ? level.label : nivel || 'Não definido';
-  };
-
+  
+  // Renderizar a interface
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
-        <div className="p-4 sm:p-6">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold">Configurações</h2>
-            <p className="text-muted-foreground">Gerencie as configurações do sistema</p>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Configurações</h1>
+      </div>
+      
+      <Tabs defaultValue="users">
+        <TabsList className="mb-4">
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="system">Sistema</TabsTrigger>
+          <TabsTrigger value="database">Banco de Dados</TabsTrigger>
+          <TabsTrigger value="integration">Integrações</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="users" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-xl font-semibold">Gerenciamento de Usuários</h2>
+              <p className="text-muted-foreground">Gerencie os usuários e suas permissões no sistema</p>
+            </div>
+            
+            <Dialog open={openNewUserDialog} onOpenChange={setOpenNewUserDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Novo Usuário
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Adicionar Novo Usuário</DialogTitle>
+                  <DialogDescription>
+                    Preencha os campos abaixo para adicionar um novo usuário ao sistema.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmitUser)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="nome"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome Completo</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nome do usuário" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input placeholder="email@exemplo.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="cargo"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Cargo</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione um cargo" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectLabel>Cargos</SelectLabel>
+                                  {availablePositions.map((position) => (
+                                    <SelectItem key={position.value} value={position.value}>
+                                      {position.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="nivelAcesso"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nível de Acesso</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione um nível" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectLabel>Níveis de Acesso</SelectLabel>
+                                  {accessLevelOptions.map((level) => (
+                                    <SelectItem key={level.value} value={level.value}>
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-3 h-3 rounded-full ${level.color}`} />
+                                        <span>{level.label} - {level.description}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="departamento"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Departamento</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Departamento (opcional)" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="matricula"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Matrícula</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Número de matrícula" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="senha"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Senha</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Senha" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="ativo"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between space-y-0 rounded-md border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                              <FormLabel>Status</FormLabel>
+                              <FormDescription>
+                                Usuário ativo no sistema
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                        Cancelar
+                      </Button>
+                      <Button type="submit" disabled={createUserMutation.isPending}>
+                        {createUserMutation.isPending ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Salvar
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
           
-          <Tabs defaultValue="users" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span className="hidden md:inline">Usuários</span>
-              </TabsTrigger>
-              <TabsTrigger value="cost-centers" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
-                <span className="hidden md:inline">Centros de Custo</span>
-              </TabsTrigger>
-              <TabsTrigger value="approvals" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span className="hidden md:inline">Aprovações</span>
-              </TabsTrigger>
-              <TabsTrigger value="general" className="flex items-center gap-2">
-                <SettingsIcon className="h-4 w-4" />
-                <span className="hidden md:inline">Geral</span>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="users" className="mt-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Usuários</CardTitle>
-                    <CardDescription>Gerencie os usuários do sistema</CardDescription>
-                  </div>
-                  <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="flex items-center gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        Novo Usuário
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                      <DialogHeader>
-                        <DialogTitle>Novo Usuário</DialogTitle>
-                        <DialogDescription>
-                          Preencha os dados para criar um novo usuário no sistema
-                        </DialogDescription>
-                      </DialogHeader>
-                      
-                      <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmitUser)} className="space-y-4 py-4">
-                          {submitError && (
-                            <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm mb-4">
-                              {submitError}
-                            </div>
-                          )}
-                          
-                          <FormField
-                            control={form.control}
-                            name="nome"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Nome</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Nome completo" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="email"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Email</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="email@dineng.com.br" type="email" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={form.control}
-                              name="matricula"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Matrícula</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="Número de matrícula" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+          <div className="border rounded-md">
+            {isLoading ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+              </div>
+            ) : error ? (
+              <div className="flex justify-center items-center h-32 text-destructive">
+                Erro ao carregar usuários. Tente novamente.
+              </div>
+            ) : users.length === 0 ? (
+              <div className="flex flex-col justify-center items-center h-32">
+                <p className="text-muted-foreground mb-4">Nenhum usuário encontrado</p>
+                <Button onClick={() => setOpenNewUserDialog(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Adicionar Usuário
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="bg-muted border-b">
+                      <th className="px-4 py-3 text-left font-medium">Nome</th>
+                      <th className="px-4 py-3 text-left font-medium">Email</th>
+                      <th className="px-4 py-3 text-left font-medium">Cargo</th>
+                      <th className="px-4 py-3 text-left font-medium">Nível</th>
+                      <th className="px-4 py-3 text-left font-medium">Matrícula</th>
+                      <th className="px-4 py-3 text-left font-medium">Status</th>
+                      <th className="px-4 py-3 text-left font-medium">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((user: any) => (
+                      <tr key={user.id} className="border-b hover:bg-muted/50">
+                        <td className="px-4 py-3">{user.nome}</td>
+                        <td className="px-4 py-3">{user.email}</td>
+                        <td className="px-4 py-3">{user.cargo}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${getNivelAcessoColorClass(user.nivel)}`} />
+                            <span>{getNivelAcessoLabel(user.nivel)}</span>
                           </div>
-                          
-                          <FormField
-                            control={form.control}
-                            name="senha"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Senha</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Senha" type="password" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="cargo"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Cargo</FormLabel>
-                                  <FormControl>
-                                    <Select
-                                      onValueChange={field.onChange}
-                                      value={field.value}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um cargo" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {availablePositions.map((position) => (
-                                          <SelectItem key={position.value} value={position.value}>
-                                            {position.label}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <FormField
-                              control={form.control}
-                              name="nivelAcesso"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Nível de Acesso</FormLabel>
-                                  <FormControl>
-                                    <Select
-                                      onValueChange={field.onChange}
-                                      value={field.value}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Selecione o nível" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {accessLevelOptions.map((level) => (
-                                          <SelectItem key={level.value} value={level.value}>
-                                            <div className="flex items-center gap-2">
-                                              <div className={`w-3 h-3 rounded-full ${level.color}`}></div>
-                                              <span>{level.label} - {level.description}</span>
-                                            </div>
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          
-                          <FormField
-                            control={form.control}
-                            name="departamento"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Departamento</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Departamento" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="ativo"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                <div className="space-y-0.5">
-                                  <FormLabel className="text-base">Usuário Ativo</FormLabel>
-                                  <FormDescription>
-                                    Desative para impedir o acesso do usuário ao sistema
-                                  </FormDescription>
-                                </div>
-                                <FormControl>
-                                  <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <div className="flex justify-end space-x-4 pt-4">
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              onClick={() => {
-                                setSubmitError(null);
-                                setUserDialogOpen(false);
-                              }}
+                        </td>
+                        <td className="px-4 py-3">{user.matricula}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {user.ativo ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex space-x-2">
+                            <AlertDialog 
+                              open={userToToggle?.id === user.id} 
+                              onOpenChange={() => setUserToToggle(null)}
                             >
-                              Cancelar
-                            </Button>
-                            <Button 
-                              type="submit" 
-                              disabled={isSubmitting}
-                            >
-                              {isSubmitting ? 'Salvando...' : 'Salvar'}
-                            </Button>
-                          </div>
-                        </form>
-                      </Form>
-                    </DialogContent>
-                  </Dialog>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="flex justify-center py-8">
-                      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border">
-                      <div className="overflow-x-auto">
-                        <table className="w-full divide-y divide-gray-200">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Nome
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Email
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Cargo
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Acesso
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Ações
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {users.length === 0 ? (
-                              <tr>
-                                <td colSpan={6} className="px-6 py-4 text-center">
-                                  Nenhum usuário encontrado. Adicione um novo usuário.
-                                </td>
-                              </tr>
-                            ) : (
-                              users.map((user: any) => (
-                                <tr key={user.id}>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                        {user.nome?.charAt(0).toUpperCase() || '?'}
-                                      </div>
-                                      <div className="ml-4">
-                                        <div className="text-sm font-medium text-gray-900">
-                                          {user.nome || 'Sem nome'}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                          {user.departamento || '-'}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">{user.email || '-'}</div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">{user.cargo || '-'}</div>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full items-center gap-1">
-                                      <div className={`w-2 h-2 rounded-full ${getNivelAcessoColorClass(user.nivel_acesso)}`}></div>
-                                      <span>{getNivelAcessoLabel(user.nivel_acesso)}</span>
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                      {user.ativo ? 'Ativo' : 'Inativo'}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <Button variant="ghost" size="sm" className="inline-flex items-center">
-                                      <Edit className="h-4 w-4 mr-1" /> Editar
-                                    </Button>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="ghost" size="sm" className={`text-${user.ativo ? 'destructive' : 'green-600'} inline-flex items-center`}>
-                                          {user.ativo ? (
-                                            <>
-                                              <Trash2 className="h-4 w-4 mr-1" /> Desativar
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Shield className="h-4 w-4 mr-1" /> Ativar
-                                            </>
-                                          )}
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>
-                                            {user.ativo ? 'Desativar usuário' : 'Ativar usuário'}
-                                          </AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            {user.ativo 
-                                              ? `Tem certeza que deseja desativar o usuário ${user.nome}? Ele não poderá mais acessar o sistema.`
-                                              : `Tem certeza que deseja ativar o usuário ${user.nome}? Ele poderá acessar o sistema novamente.`
-                                            }
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            className={user.ativo ? 'bg-destructive hover:bg-destructive/90' : ''}
-                                            onClick={() => handleUserStatusChange(user.id, !user.ativo)}
-                                          >
-                                            {user.ativo ? 'Desativar' : 'Ativar'}
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </td>
-                                </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="cost-centers" className="mt-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Centros de Custo</CardTitle>
-                    <CardDescription>Gerencie os centros de custo para solicitações</CardDescription>
-                  </div>
-                  <CostCenterDialog 
-                    open={costCenterDialogOpen} 
-                    onOpenChange={setCostCenterDialogOpen} 
-                  />
-                  <Button onClick={() => setCostCenterDialogOpen(true)}>
-                    Novo Centro de Custo
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingCostCenters ? (
-                    <div className="flex justify-center py-8">
-                      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border">
-                      <div className="overflow-x-auto">
-                        <table className="w-full divide-y divide-gray-200">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Código
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Descrição
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Ações
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {costCenters.map((center: any) => (
-                              <tr key={center.id}>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm font-medium text-gray-900">{center.codigo}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm text-gray-900">{center.descricao}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${center.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                    {center.ativo ? 'Ativo' : 'Inativo'}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleToggleUserStatus(user.id, !!user.ativo)}
+                                >
+                                  {user.ativo ? 'Desativar' : 'Ativar'}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    {userToToggle?.active 
+                                      ? 'Ativar Usuário' 
+                                      : 'Desativar Usuário'}
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {userToToggle?.active 
+                                      ? 'Tem certeza que deseja ativar este usuário?' 
+                                      : 'Tem certeza que deseja desativar este usuário? Ele não poderá acessar o sistema.'}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
                                     onClick={() => {
-                                      setCostCenterDialogOpen(true);
-                                      // setEditingCenter(center);
+                                      if (userToToggle) {
+                                        toggleUserStatusMutation.mutate(userToToggle);
+                                      }
                                     }}
                                   >
-                                    Editar
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="sm" className="text-destructive">
-                                        Excluir
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Excluir centro de custo</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Tem certeza que deseja excluir o centro de custo {center.codigo}? 
-                                          Esta ação não pode ser desfeita.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction className="bg-destructive hover:bg-destructive/90">
-                                          Excluir
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="approvals" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Configurações de Aprovação</CardTitle>
-                  <CardDescription>
-                    Gerencie os fluxos de aprovação e limites de autorizações
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Níveis de Autorização</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Defina os valores máximos para cada tipo de compra por nível de autorização
-                    </p>
-                    
-                    <div className="rounded-md border">
-                      <div className="overflow-x-auto">
-                        <table className="w-full divide-y divide-gray-200">
-                          <thead className="bg-muted/50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Nível
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Compras Impeditivas
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Compras de Consumo
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Compras para Estoque
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Compras Locais
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Investimentos
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                Alojamentos
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            <tr>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  Levantador / Encarregado
-                                </div>
-                                <div className="text-xs text-yellow-500 font-medium">
-                                  Amarelo
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 100,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 0,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 0,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 100,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 0,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 0,00</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  Supervisão / Segurança
-                                </div>
-                                <div className="text-xs text-blue-500 font-medium">
-                                  Azul
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 200,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 200,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 200,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 200,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 0,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 0,00</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  Coordenação
-                                </div>
-                                <div className="text-xs text-amber-800 font-medium">
-                                  Marrom
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 1.000,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 1.000,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 1.000,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 1.000,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 1.000,00</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 1.000,00</div>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  Gerência / Diretoria
-                                </div>
-                                <div className="text-xs text-green-500 font-medium">
-                                  Verde
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 10.000,00+</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 10.000,00+</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 10.000,00+</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 10.000,00+</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 10.000,00+</div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">R$ 10.000,00+</div>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="general" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Configurações Gerais</CardTitle>
-                  <CardDescription>Preferências e configurações gerais do sistema</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <div className="flex flex-col space-y-1.5">
-                      <h3 className="text-lg font-medium">Configurações da Empresa</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Informações básicas da empresa que serão exibidas nos relatórios e documentos
-                      </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Nome da Empresa</label>
-                        <Input value="DinEng Construção e Manutenção LTDA" disabled />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">CNPJ</label>
-                        <Input value="XX.XXX.XXX/0001-XX" disabled />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Endereço</label>
-                        <Input value="Rua Exemplo, 123 - Cidade" disabled />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Email</label>
-                        <Input value="contato@dineng.com.br" disabled />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4 pt-4">
-                      <div className="flex flex-col space-y-1.5">
-                        <h3 className="text-lg font-medium">Configurações do Sistema</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Ajuste as configurações de funcionamento do sistema
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center justify-between border p-4 rounded-lg">
-                        <div>
-                          <h4 className="font-medium">URL Personalizada</h4>
-                          <p className="text-sm text-muted-foreground">
-                            URL para acesso ao sistema
-                          </p>
-                        </div>
-                        <div className="w-64">
-                          <Input value="dinengcompras.com.br" disabled />
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between border p-4 rounded-lg">
-                        <div>
-                          <h4 className="font-medium">Notificações por Email</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Enviar emails de notificação para aprovações e novos registros
-                          </p>
-                        </div>
-                        <Switch checked={true} disabled />
-                      </div>
-                      
-                      <div className="flex items-center justify-between border p-4 rounded-lg">
-                        <div>
-                          <h4 className="font-medium">Backup Automático</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Realizar backup automático diário dos dados
-                          </p>
-                        </div>
-                        <Switch checked={true} disabled />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </main>
+                                    Confirmar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="system" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações do Sistema</CardTitle>
+              <CardDescription>Gerenciar configurações gerais do sistema</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="company-name">Nome da Empresa</Label>
+                <Input id="company-name" defaultValue="Dineng Engenharia" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company-logo">Logo da Empresa</Label>
+                <Input id="company-logo" type="file" />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch id="notifications" />
+                <Label htmlFor="notifications">Ativar notificações por email</Label>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button>Salvar Configurações</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="database" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Banco de Dados</CardTitle>
+              <CardDescription>Gerenciar configurações de conexão</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="db-host">Host</Label>
+                <Input id="db-host" defaultValue="localhost" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="db-name">Nome do Banco</Label>
+                <Input id="db-name" defaultValue="dineng_db" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="db-user">Usuário</Label>
+                <Input id="db-user" defaultValue="admin" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="db-password">Senha</Label>
+                <Input id="db-password" type="password" value="********" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button>Testar Conexão</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="integration" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Integrações</CardTitle>
+              <CardDescription>Configurar integrações com outros sistemas</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <h3 className="font-medium">API Ext. Sistema Contratos</h3>
+                  <p className="text-sm text-muted-foreground">Integração com sistema de contratos</p>
+                </div>
+                <Switch id="api-toggle" />
+              </div>
+              <div className="flex items-center justify-between py-2 border-t">
+                <div>
+                  <h3 className="font-medium">API Fornecedores</h3>
+                  <p className="text-sm text-muted-foreground">Importação automática de fornecedores</p>
+                </div>
+                <Switch id="supplier-toggle" />
+              </div>
+              <div className="flex items-center justify-between py-2 border-t">
+                <div>
+                  <h3 className="font-medium">API Bancária</h3>
+                  <p className="text-sm text-muted-foreground">Integração com sistema bancário</p>
+                </div>
+                <Switch id="bank-toggle" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button>Salvar Configurações</Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

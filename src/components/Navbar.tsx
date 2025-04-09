@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import UserMenu from './UserMenu';
 
 interface NavItemProps {
   to: string;
@@ -137,6 +138,8 @@ const Navbar: React.FC = () => {
               <Bell size={20} />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
+            
+            <UserMenu />
             
             <button 
               className="p-2 rounded-full bg-secondary"

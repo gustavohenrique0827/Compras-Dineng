@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { ThemeProvider } from "@/components/ui/theme-provider";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import RequestForm from "./pages/RequestForm";
@@ -17,6 +18,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import QuoteForm from "./pages/QuoteForm";
 import QuoteDetail from "./pages/QuoteDetail";
+import Layout from "./components/Layout";
 
 const queryClient = new QueryClient();
 
@@ -55,28 +57,99 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/request/new" element={<ProtectedRoute><RequestForm /></ProtectedRoute>} />
-            <Route path="/requests" element={<ProtectedRoute><Requests /></ProtectedRoute>} />
-            <Route path="/requests/:id" element={<ProtectedRoute><RequestDetail /></ProtectedRoute>} />
-            <Route path="/purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
-            <Route path="/purchases/new" element={<ProtectedRoute><QuoteForm /></ProtectedRoute>} />
-            <Route path="/purchases/:id" element={<ProtectedRoute><QuoteDetail /></ProtectedRoute>} />
-            <Route path="/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <ThemeProvider defaultTheme="light" storageKey="dineng-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Index />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/request/new" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <RequestForm />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/requests" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Requests />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/requests/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <RequestDetail />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/purchases" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Purchases />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/purchases/new" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <QuoteForm />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/purchases/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <QuoteDetail />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/suppliers" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Suppliers />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/reports" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Reports />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 };
