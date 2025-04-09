@@ -1,18 +1,28 @@
 
 import React from 'react';
-import { Bell, Settings, User } from 'lucide-react';
+import { Bell, Settings, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UserMenu from './UserMenu';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { SidebarTrigger } from './ui/sidebar';
+import { SidebarTrigger, useSidebar } from './ui/sidebar';
 
 const TopBar = () => {
   const isMobile = useIsMobile();
+  const { setOpenMobile } = useSidebar();
   
   return (
     <div className="h-16 bg-background border-b z-10 fixed top-0 right-0 left-0 flex items-center justify-between px-4 md:pl-64 transition-all duration-300">
       <div className="flex items-center">
-        {!isMobile && <SidebarTrigger className="mr-2" />}
+        {isMobile ? (
+          <Button variant="ghost" size="icon" onClick={() => setOpenMobile(true)}>
+            <span className="sr-only">Toggle menu</span>
+            <span className="h-5 w-5 flex items-center justify-center">
+              <Menu className="h-5 w-5" />
+            </span>
+          </Button>
+        ) : (
+          <SidebarTrigger className="mr-2" />
+        )}
         <h1 className="text-lg font-semibold md:hidden">Dineng Compras</h1>
       </div>
       

@@ -22,7 +22,8 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroupLabel
+  SidebarGroupLabel,
+  useSidebar
 } from '@/components/ui/sidebar';
 
 const navItems = [
@@ -38,7 +39,7 @@ const navItems = [
 const Navbar: React.FC = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { openMobile, setOpenMobile } = useSidebar();
   
   const isActive = (path: string) => {
     if (path === '/') {
@@ -49,17 +50,15 @@ const Navbar: React.FC = () => {
   
   const handleNavItemClick = () => {
     if (isMobile) {
-      setMobileMenuOpen(false);
+      setOpenMobile(false);
     }
   };
   
   if (isMobile) {
     return (
       <>
-        {/* Mobile header with menu button handled by TopBar */}
-        
         {/* Mobile slide-out menu */}
-        {mobileMenuOpen && (
+        {openMobile && (
           <div className="fixed inset-0 bg-background z-40 pt-16 animate-fadeIn">
             <div className="p-3">
               <div className="flex items-center gap-3 px-6 py-5">
