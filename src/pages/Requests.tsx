@@ -1,40 +1,30 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  FileText, 
-  Search, 
-  Filter, 
-  ArrowUpDown,
-  Loader2
-} from 'lucide-react';
+import { FileText, Search, Filter, ArrowUpDown, Loader2 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { fetchRequests } from '@/api/requests';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import { Status, Priority } from '@/utils/mockData';
 import { Request } from '@/utils/database';
-
 const Requests = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  
+
   // Fetch requests data with proper error handling
-  const { data: requests = [], isLoading, error } = useQuery({
+  const {
+    data: requests = [],
+    isLoading,
+    error
+  } = useQuery({
     queryKey: ['requests'],
     queryFn: fetchRequests,
     meta: {
@@ -46,27 +36,22 @@ const Requests = () => {
       }
     }
   });
-  
+
   // Apply filters to the list of requests with null checks to prevent "toLowerCase of undefined" error
   const filteredRequests = requests.filter(request => {
     // Guard against undefined properties with optional chaining and nullish coalescing
-    const matchesSearch = 
-      (request.aplicacao?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (request.nome_solicitante?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (request.centro_custo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      String(request.id || '').includes(searchTerm);
-    
+    const matchesSearch = (request.aplicacao?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || (request.nome_solicitante?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || (request.centro_custo?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || String(request.id || '').includes(searchTerm);
     const matchesStatus = statusFilter === 'all' ? true : request.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' ? true : request.prioridade === priorityFilter;
-    
     return matchesSearch && matchesStatus && matchesPriority;
   });
-  
   useEffect(() => {
     // Test the database connection
     const testDb = async () => {
       try {
-        const { testConnection } = await import('@/utils/database');
+        const {
+          testConnection
+        } = await import('@/utils/database');
         const connected = await testConnection();
         if (connected) {
           toast.success('Conectado com sucesso ao banco de dados');
@@ -78,15 +63,12 @@ const Requests = () => {
         toast.error('Erro ao conectar ao banco de dados');
       }
     };
-    
     testDb();
   }, []);
-  
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Navbar />
       <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
-        <div className="section-padding">
+        <div className="section-padding 10px\nmargin-right 82px">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
@@ -107,12 +89,7 @@ const Requests = () => {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Pesquisar solicitações..." 
-                      className="pl-9"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                    <Input placeholder="Pesquisar solicitações..." className="pl-9" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                   </div>
                   
                   <div className="flex gap-2">
@@ -153,20 +130,15 @@ const Requests = () => {
                 </div>
               </div>
               
-              {isLoading ? (
-                <div className="flex justify-center items-center py-12">
+              {isLoading ? <div className="flex justify-center items-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <span className="ml-2 text-muted-foreground">Carregando solicitações...</span>
-                </div>
-              ) : error ? (
-                <div className="py-8 text-center">
+                </div> : error ? <div className="py-8 text-center">
                   <p className="text-destructive">Erro ao carregar as solicitações</p>
                   <Button variant="outline" onClick={() => window.location.reload()} className="mt-2">
                     Tentar novamente
                   </Button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
+                </div> : <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-muted/50">
@@ -179,12 +151,7 @@ const Requests = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRequests.map((request) => (
-                        <tr 
-                          key={request.id}
-                          className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
-                          onClick={() => navigate(`/requests/${request.id}`)}
-                        >
+                      {filteredRequests.map(request => <tr key={request.id} className="border-b hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => navigate(`/requests/${request.id}`)}>
                           <td className="px-4 py-3 text-sm">{request.id}</td>
                           <td className="px-4 py-3 text-sm font-medium">{request.aplicacao}</td>
                           <td className="px-4 py-3 text-sm">{request.nome_solicitante}</td>
@@ -195,24 +162,18 @@ const Requests = () => {
                           <td className="px-4 py-3 text-sm">
                             <StatusBadge type="priority" value={request.prioridade as Priority} />
                           </td>
-                        </tr>
-                      ))}
+                        </tr>)}
                     </tbody>
                   </table>
                   
-                  {filteredRequests.length === 0 && (
-                    <div className="py-8 text-center">
+                  {filteredRequests.length === 0 && <div className="py-8 text-center">
                       <p className="text-muted-foreground">Nenhuma solicitação encontrada</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    </div>}
+                </div>}
             </div>
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default Requests;
