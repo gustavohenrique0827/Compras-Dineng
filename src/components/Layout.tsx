@@ -18,8 +18,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className={`flex-1 flex flex-col ${!isMobile ? 'ml-64' : 'mt-16'}`}>
         <TopBar />
         
-        <main className="flex-1 p-4 md:p-6 container mx-auto max-w-6xl">
-          {children}
+        <main className="flex-1 p-4 md:p-6">
+          <div className="container mx-auto max-w-[1200px]">
+            {children}
+          </div>
         </main>
       </div>
     </div>

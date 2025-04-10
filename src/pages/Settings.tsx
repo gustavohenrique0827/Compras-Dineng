@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -122,15 +123,16 @@ const Settings = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Configurações</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Configurações</h1>
+          <p className="text-muted-foreground mt-1">Gerencie as configurações do sistema</p>
+        </div>
       </div>
       
       <Tabs defaultValue="users">
         <TabsList className="mb-4">
           <TabsTrigger value="users">Usuários</TabsTrigger>
-          <TabsTrigger value="system">Sistema</TabsTrigger>
           <TabsTrigger value="database">Banco de Dados</TabsTrigger>
-          <TabsTrigger value="integration">Integrações</TabsTrigger>
         </TabsList>
         
         <TabsContent value="users" className="space-y-4">
@@ -348,133 +350,109 @@ const Settings = () => {
             </Dialog>
           </div>
           
-          <div className="border rounded-md">
-            {isLoading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
-              </div>
-            ) : error ? (
-              <div className="flex justify-center items-center h-32 text-destructive">
-                Erro ao carregar usuários. Tente novamente.
-              </div>
-            ) : users.length === 0 ? (
-              <div className="flex flex-col justify-center items-center h-32">
-                <p className="text-muted-foreground mb-4">Nenhum usuário encontrado</p>
-                <Button onClick={() => setOpenNewUserDialog(true)}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Adicionar Usuário
-                </Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto">
-                  <thead>
-                    <tr className="bg-muted border-b">
-                      <th className="px-4 py-3 text-left font-medium">Nome</th>
-                      <th className="px-4 py-3 text-left font-medium">Email</th>
-                      <th className="px-4 py-3 text-left font-medium">Cargo</th>
-                      <th className="px-4 py-3 text-left font-medium">Nível</th>
-                      <th className="px-4 py-3 text-left font-medium">Matrícula</th>
-                      <th className="px-4 py-3 text-left font-medium">Status</th>
-                      <th className="px-4 py-3 text-left font-medium">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((user: any) => (
-                      <tr key={user.id} className="border-b hover:bg-muted/50">
-                        <td className="px-4 py-3">{user.nome}</td>
-                        <td className="px-4 py-3">{user.email}</td>
-                        <td className="px-4 py-3">{user.cargo}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full ${getNivelAcessoColorClass(user.nivel)}`} />
-                            <span>{getNivelAcessoLabel(user.nivel)}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">{user.matricula}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.ativo ? 'Ativo' : 'Inativo'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex space-x-2">
-                            <AlertDialog 
-                              open={userToToggle?.id === user.id} 
-                              onOpenChange={() => setUserToToggle(null)}
-                            >
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleToggleUserStatus(user.id, !!user.ativo)}
-                                >
-                                  {user.ativo ? 'Desativar' : 'Ativar'}
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    {userToToggle?.active 
-                                      ? 'Ativar Usuário' 
-                                      : 'Desativar Usuário'}
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    {userToToggle?.active 
-                                      ? 'Tem certeza que deseja ativar este usuário?' 
-                                      : 'Tem certeza que deseja desativar este usuário? Ele não poderá acessar o sistema.'}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => {
-                                      if (userToToggle) {
-                                        toggleUserStatusMutation.mutate(userToToggle);
-                                      }
-                                    }}
-                                  >
-                                    Confirmar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </td>
+          <Card className="rounded-lg shadow-sm">
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+                </div>
+              ) : error ? (
+                <div className="flex justify-center items-center h-32 text-destructive">
+                  Erro ao carregar usuários. Tente novamente.
+                </div>
+              ) : users.length === 0 ? (
+                <div className="flex flex-col justify-center items-center h-32">
+                  <p className="text-muted-foreground mb-4">Nenhum usuário encontrado</p>
+                  <Button onClick={() => setOpenNewUserDialog(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Adicionar Usuário
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full table-auto">
+                    <thead>
+                      <tr className="bg-muted border-b">
+                        <th className="px-4 py-3 text-left font-medium">Nome</th>
+                        <th className="px-4 py-3 text-left font-medium">Email</th>
+                        <th className="px-4 py-3 text-left font-medium">Cargo</th>
+                        <th className="px-4 py-3 text-left font-medium">Nível</th>
+                        <th className="px-4 py-3 text-left font-medium">Matrícula</th>
+                        <th className="px-4 py-3 text-left font-medium">Status</th>
+                        <th className="px-4 py-3 text-left font-medium">Ações</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="system" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações do Sistema</CardTitle>
-              <CardDescription>Gerenciar configurações gerais do sistema</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="company-name">Nome da Empresa</Label>
-                <Input id="company-name" defaultValue="Dineng Engenharia" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company-logo">Logo da Empresa</Label>
-                <Input id="company-logo" type="file" />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch id="notifications" />
-                <Label htmlFor="notifications">Ativar notificações por email</Label>
-              </div>
+                    </thead>
+                    <tbody>
+                      {users.map((user: any) => (
+                        <tr key={user.id} className="border-b hover:bg-muted/50">
+                          <td className="px-4 py-3">{user.nome}</td>
+                          <td className="px-4 py-3">{user.email}</td>
+                          <td className="px-4 py-3">{user.cargo}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full ${getNivelAcessoColorClass(user.nivel)}`} />
+                              <span>{getNivelAcessoLabel(user.nivel)}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">{user.matricula}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {user.ativo ? 'Ativo' : 'Inativo'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex space-x-2">
+                              <AlertDialog 
+                                open={userToToggle?.id === user.id} 
+                                onOpenChange={() => setUserToToggle(null)}
+                              >
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleToggleUserStatus(user.id, !!user.ativo)}
+                                  >
+                                    {user.ativo ? 'Desativar' : 'Ativar'}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      {userToToggle?.active 
+                                        ? 'Ativar Usuário' 
+                                        : 'Desativar Usuário'}
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      {userToToggle?.active 
+                                        ? 'Tem certeza que deseja ativar este usuário?' 
+                                        : 'Tem certeza que deseja desativar este usuário? Ele não poderá acessar o sistema.'}
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => {
+                                        if (userToToggle) {
+                                          toggleUserStatusMutation.mutate(userToToggle);
+                                        }
+                                      }}
+                                    >
+                                      Confirmar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
-            <CardFooter>
-              <Button>Salvar Configurações</Button>
-            </CardFooter>
           </Card>
         </TabsContent>
         
@@ -504,41 +482,6 @@ const Settings = () => {
             </CardContent>
             <CardFooter>
               <Button>Testar Conexão</Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="integration" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Integrações</CardTitle>
-              <CardDescription>Configurar integrações com outros sistemas</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <h3 className="font-medium">API Ext. Sistema Contratos</h3>
-                  <p className="text-sm text-muted-foreground">Integração com sistema de contratos</p>
-                </div>
-                <Switch id="api-toggle" />
-              </div>
-              <div className="flex items-center justify-between py-2 border-t">
-                <div>
-                  <h3 className="font-medium">API Fornecedores</h3>
-                  <p className="text-sm text-muted-foreground">Importação automática de fornecedores</p>
-                </div>
-                <Switch id="supplier-toggle" />
-              </div>
-              <div className="flex items-center justify-between py-2 border-t">
-                <div>
-                  <h3 className="font-medium">API Bancária</h3>
-                  <p className="text-sm text-muted-foreground">Integração com sistema bancário</p>
-                </div>
-                <Switch id="bank-toggle" />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button>Salvar Configurações</Button>
             </CardFooter>
           </Card>
         </TabsContent>
