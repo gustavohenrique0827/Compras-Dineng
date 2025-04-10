@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,31 +8,10 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { createNewRequest } from '@/api/requests';
@@ -43,49 +21,45 @@ import CostCenterCombobox from '@/components/cost-center/CostCenterCombobox';
 // Validation schema
 const requestFormSchema = z.object({
   requesterName: z.string().min(3, {
-    message: "Nome do solicitante deve ter pelo menos 3 caracteres.",
+    message: "Nome do solicitante deve ter pelo menos 3 caracteres."
   }),
   application: z.string().min(3, {
-    message: "Aplicação deve ter pelo menos 3 caracteres.",
+    message: "Aplicação deve ter pelo menos 3 caracteres."
   }),
   costCenter: z.string().min(1, {
-    message: "Centro de custo é obrigatório.",
+    message: "Centro de custo é obrigatório."
   }),
   deliveryLocation: z.string().min(3, {
-    message: "Local de entrega deve ter pelo menos 3 caracteres.",
+    message: "Local de entrega deve ter pelo menos 3 caracteres."
   }),
   deliveryDeadline: z.string().min(1, {
-    message: "Prazo de entrega é obrigatório.",
+    message: "Prazo de entrega é obrigatório."
   }),
   category: z.string().min(1, {
-    message: "Categoria é obrigatória.",
+    message: "Categoria é obrigatória."
   }),
   priority: z.string().min(1, {
-    message: "Prioridade é obrigatória.",
+    message: "Prioridade é obrigatória."
   }),
   reason: z.string().min(10, {
-    message: "Motivo deve ter pelo menos 10 caracteres.",
+    message: "Motivo deve ter pelo menos 10 caracteres."
   }),
-  items: z.array(
-    z.object({
-      description: z.string().min(3, {
-        message: "Descrição deve ter pelo menos 3 caracteres.",
-      }),
-      quantity: z.number().min(1, {
-        message: "Quantidade deve ser pelo menos 1.",
-      }),
+  items: z.array(z.object({
+    description: z.string().min(3, {
+      message: "Descrição deve ter pelo menos 3 caracteres."
+    }),
+    quantity: z.number().min(1, {
+      message: "Quantidade deve ser pelo menos 1."
     })
-  ).min(1, {
-    message: "Adicione pelo menos um item à solicitação.",
-  }),
+  })).min(1, {
+    message: "Adicione pelo menos um item à solicitação."
+  })
 });
-
 type FormValues = z.infer<typeof requestFormSchema>;
-
 const RequestForm = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  
+
   // Define form
   const form = useForm<FormValues>({
     resolver: zodResolver(requestFormSchema),
@@ -98,12 +72,19 @@ const RequestForm = () => {
       category: "",
       priority: "",
       reason: "",
-      items: [{ description: "", quantity: 1 }],
-    },
+      items: [{
+        description: "",
+        quantity: 1
+      }]
+    }
   });
 
   // Use useFieldArray to manage items array
-  const { fields, append, remove } = useFieldArray({
+  const {
+    fields,
+    append,
+    remove
+  } = useFieldArray({
     control: form.control,
     name: "items"
   });
@@ -115,7 +96,7 @@ const RequestForm = () => {
       toast.success("Solicitação criada com sucesso!");
       navigate("/requests");
     },
-    onError: (error) => {
+    onError: error => {
       console.error("Erro ao criar solicitação:", error);
       toast.error("Erro ao criar a solicitação. Tente novamente.");
     }
@@ -125,12 +106,10 @@ const RequestForm = () => {
   const onSubmit = async (data: FormValues) => {
     mutation.mutate(data);
   };
-
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       <Navbar />
       <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
-        <div className="p-4 sm:p-6">
+        <div className="space-y-6">
           <div className="max-w-3xl mx-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold">Nova Solicitação</h2>
@@ -149,87 +128,62 @@ const RequestForm = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="requesterName"
-                      render={({ field }) => (
-                        <FormItem>
+                    <FormField control={form.control} name="requesterName" render={({
+                    field
+                  }) => <FormItem>
                           <FormLabel>Nome do Solicitante</FormLabel>
                           <FormControl>
                             <Input placeholder="Digite seu nome completo" {...field} />
                           </FormControl>
                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        </FormItem>} />
 
-                    <FormField
-                      control={form.control}
-                      name="application"
-                      render={({ field }) => (
-                        <FormItem>
+                    <FormField control={form.control} name="application" render={({
+                    field
+                  }) => <FormItem>
                           <FormLabel>Aplicação</FormLabel>
                           <FormControl>
                             <Input placeholder="Para que será utilizado?" {...field} />
                           </FormControl>
                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        </FormItem>} />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="costCenter"
-                        render={({ field }) => (
-                          <FormItem>
+                      <FormField control={form.control} name="costCenter" render={({
+                      field
+                    }) => <FormItem>
                             <FormLabel>Centro de Custo</FormLabel>
                             <FormControl>
-                              <CostCenterCombobox
-                                value={field.value}
-                                onChange={field.onChange}
-                              />
+                              <CostCenterCombobox value={field.value} onChange={field.onChange} />
                             </FormControl>
                             <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          </FormItem>} />
 
-                      <FormField
-                        control={form.control}
-                        name="deliveryLocation"
-                        render={({ field }) => (
-                          <FormItem>
+                      <FormField control={form.control} name="deliveryLocation" render={({
+                      field
+                    }) => <FormItem>
                             <FormLabel>Local de Entrega</FormLabel>
                             <FormControl>
                               <Input placeholder="Onde será entregue?" {...field} />
                             </FormControl>
                             <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          </FormItem>} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="deliveryDeadline"
-                        render={({ field }) => (
-                          <FormItem>
+                      <FormField control={form.control} name="deliveryDeadline" render={({
+                      field
+                    }) => <FormItem>
                             <FormLabel>Prazo de Entrega</FormLabel>
                             <FormControl>
                               <Input type="date" {...field} />
                             </FormControl>
                             <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          </FormItem>} />
 
-                      <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                          <FormItem>
+                      <FormField control={form.control} name="category" render={({
+                      field
+                    }) => <FormItem>
                             <FormLabel>Categoria</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
@@ -247,15 +201,11 @@ const RequestForm = () => {
                               </SelectContent>
                             </Select>
                             <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          </FormItem>} />
 
-                      <FormField
-                        control={form.control}
-                        name="priority"
-                        render={({ field }) => (
-                          <FormItem>
+                      <FormField control={form.control} name="priority" render={({
+                      field
+                    }) => <FormItem>
                             <FormLabel>Prioridade</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
@@ -273,28 +223,18 @@ const RequestForm = () => {
                               Define o prazo para aprovação
                             </FormDescription>
                             <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          </FormItem>} />
                     </div>
 
-                    <FormField
-                      control={form.control}
-                      name="reason"
-                      render={({ field }) => (
-                        <FormItem>
+                    <FormField control={form.control} name="reason" render={({
+                    field
+                  }) => <FormItem>
                           <FormLabel>Motivo da Compra</FormLabel>
                           <FormControl>
-                            <Textarea
-                              placeholder="Descreva detalhadamente o motivo desta solicitação..."
-                              className="min-h-[120px]"
-                              {...field}
-                            />
+                            <Textarea placeholder="Descreva detalhadamente o motivo desta solicitação..." className="min-h-[120px]" {...field} />
                           </FormControl>
                           <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        </FormItem>} />
                   </CardContent>
                 </Card>
 
@@ -307,67 +247,42 @@ const RequestForm = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {fields.map((item, index) => (
-                        <div key={item.id} className="flex items-start gap-4">
+                      {fields.map((item, index) => <div key={item.id} className="flex items-start gap-4">
                           <div className="flex-1">
-                            <FormField
-                              control={form.control}
-                              name={`items.${index}.description`}
-                              render={({ field }) => (
-                                <FormItem>
+                            <FormField control={form.control} name={`items.${index}.description`} render={({
+                          field
+                        }) => <FormItem>
                                   <FormLabel>Descrição do Item {index + 1}</FormLabel>
                                   <FormControl>
                                     <Input placeholder="Nome/descrição do item" {...field} />
                                   </FormControl>
                                   <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                                </FormItem>} />
                           </div>
                           
                           <div className="w-24">
-                            <FormField
-                              control={form.control}
-                              name={`items.${index}.quantity`}
-                              render={({ field }) => (
-                                <FormItem>
+                            <FormField control={form.control} name={`items.${index}.quantity`} render={({
+                          field
+                        }) => <FormItem>
                                   <FormLabel>Qtd.</FormLabel>
                                   <FormControl>
-                                    <Input 
-                                      type="number" 
-                                      min={1}
-                                      {...field}
-                                      onChange={(e) => field.onChange(Number(e.target.value))}
-                                    />
+                                    <Input type="number" min={1} {...field} onChange={e => field.onChange(Number(e.target.value))} />
                                   </FormControl>
                                   <FormMessage />
-                                </FormItem>
-                              )}
-                            />
+                                </FormItem>} />
                           </div>
                           
-                          {fields.length > 1 && (
-                            <div className="pt-8">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => remove(index)}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
+                          {fields.length > 1 && <div className="pt-8">
+                              <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            </div>}
+                        </div>)}
                       
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => append({ description: "", quantity: 1 })}
-                      >
+                      <Button type="button" variant="outline" className="w-full" onClick={() => append({
+                      description: "",
+                      quantity: 1
+                    })}>
                         <Plus className="mr-2 h-4 w-4" />
                         Adicionar Item
                       </Button>
@@ -376,25 +291,14 @@ const RequestForm = () => {
                 </Card>
                 
                 <div className="flex flex-col sm:flex-row gap-4 justify-end pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/requests")}
-                  >
+                  <Button type="button" variant="outline" onClick={() => navigate("/requests")}>
                     Cancelar
                   </Button>
-                  <Button 
-                    type="submit"
-                    disabled={mutation.isPending}
-                  >
-                    {mutation.isPending ? (
-                      <>
+                  <Button type="submit" disabled={mutation.isPending}>
+                    {mutation.isPending ? <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Enviando...
-                      </>
-                    ) : (
-                      <>Enviar Solicitação</>
-                    )}
+                      </> : <>Enviar Solicitação</>}
                   </Button>
                 </div>
               </form>
@@ -402,8 +306,6 @@ const RequestForm = () => {
           </div>
         </div>
       </main>
-    </div>
-  );
+    </div>;
 };
-
 export default RequestForm;
