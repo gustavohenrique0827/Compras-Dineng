@@ -15,7 +15,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       
-      <div className={`flex-1 flex flex-col ${!isMobile ? 'ml-64' : 'mt-16'}`}>
+      <div className={`flex flex flex-col ${!isMobile ? 'ml-64' : 'mt-16'}`}>
         <TopBar />
         
         <main className="flex-1 p-4 md:p-6">

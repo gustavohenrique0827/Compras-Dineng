@@ -215,7 +215,7 @@ const Purchases = () => {
       supplierId: supplier.id
     }));
     
-    setItems([...items, ...newItems]);
+    newFunction(setItems, items, newItems);
     setNewItemName('');
     setNewItemQuantity(1);
     toast.success('Item adicionado para todos os fornecedores');
@@ -335,7 +335,7 @@ const Purchases = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
+      <main className={`pb-20-1 ${isMobile ? 'pt-20-1' : 'ml-64-1'}`}>
         <div className="section-padding">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -651,16 +651,28 @@ const Purchases = () => {
                   id: 1,
                   name: "Fornecedor A",
                   items: [
-                    { id: 1, itemName: "Peça de reposição", quantity: 2, price: 120.00, supplierId: 1 },
-                    { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1 }
+                    {
+                      id: 1, itemName: "Peça de reposição", quantity: 2, price: 120.00, supplierId: 1,
+                      parcela: ''
+                    },
+                    {
+                      id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1,
+                      parcela: ''
+                    }
                   ]
                 },
                 {
                   id: 2,
                   name: "Fornecedor B",
                   items: [
-                    { id: 3, itemName: "Peça de reposição", quantity: 2, price: 135.00, supplierId: 2 },
-                    { id: 4, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2 }
+                    {
+                      id: 3, itemName: "Peça de reposição", quantity: 2, price: 135.00, supplierId: 2,
+                      parcela: ''
+                    },
+                    {
+                      id: 4, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2,
+                      parcela: ''
+                    }
                   ]
                 }
               ]}
@@ -676,3 +688,9 @@ const Purchases = () => {
 };
 
 export default Purchases;
+function newFunction(setItems: React.Dispatch<React.SetStateAction<QuoteItem[]>>, items: QuoteItem[], newItems: {
+  id: number; // ID temporário único
+  itemName: string; quantity: number; price: number; supplierId: number;
+}[]) {
+}
+

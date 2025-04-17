@@ -24,7 +24,7 @@ const mapSupplierFields = (supplier) => {
 // Obter todos os fornecedores
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM fornecedores');
+    const [rows] = await pool.query('SELECT * FROM compra_tb_fornecedor');
     const mappedSuppliers = rows.map(mapSupplierFields);
     res.json(mappedSuppliers);
   } catch (error) {
@@ -37,7 +37,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query('SELECT * FROM fornecedores WHERE id = ?', [id]);
+    const [rows] = await pool.query('SELECT * FROM compra_tb_fornecedor WHERE id = ?', [id]);
     
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Fornecedor não encontrado' });
@@ -56,7 +56,7 @@ router.post('/', async (req, res) => {
     const supplierData = req.body;
     
     const [result] = await pool.query(
-      `INSERT INTO fornecedores (
+      `INSERT INTO compra_tb_fornecedor (
         nome_fornecedor, 
         cnpj, 
         Categoria, 
@@ -99,7 +99,7 @@ router.put('/:id', async (req, res) => {
     const supplierData = req.body;
     
     await pool.query(
-      `UPDATE fornecedores 
+      `UPDATE compra_tb_fornecedor 
        SET 
         nome_fornecedor = ?, 
         cnpj = ?,
@@ -140,7 +140,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query('DELETE FROM fornecedores WHERE id = ?', [id]);
+    await pool.query('DELETE FROM compra_tb_fornecedor WHERE id = ?', [id]);
     res.json({ success: true, message: 'Fornecedor excluído com sucesso' });
   } catch (error) {
     console.error(`Erro ao excluir fornecedor ${req.params.id}:`, error);

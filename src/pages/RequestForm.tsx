@@ -106,9 +106,9 @@ const RequestForm = () => {
   const onSubmit = async (data: FormValues) => {
     mutation.mutate(data);
   };
-  return <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background1">
       <Navbar />
-      <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
+      <main className={`pb-20-1 ${isMobile ? 'pt-20-1' : 'ml-64-1'}`}>
         <div className="space-y-6">
           <div className="max-w-3xl mx-auto">
             <div className="mb-6">
