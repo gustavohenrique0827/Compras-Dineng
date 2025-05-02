@@ -3,6 +3,7 @@ import { createQuote, updateQuoteStatus, getAllRequests, Request, getAllSupplier
 import { toast } from 'sonner';
 
 export interface QuoteItem {
+  parcela: string | number | readonly string[];
   id: number;
   itemName: string;
   quantity: number;

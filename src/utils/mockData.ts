@@ -39,6 +39,9 @@ export interface Approval {
 }
 
 export interface PurchaseRequest {
+  aplicacao: string;
+  nome_solicitante: string;
+  centro_custo: string;
   id: number;
   requesterName: string;
   application: string;
@@ -83,7 +86,10 @@ export const mockRequests: PurchaseRequest[] = [
         approvalLevel: "Supervisão",
         approvalDate: "2023-09-16",
       }
-    ]
+    ],
+    centro_custo: "",
+    nome_solicitante: "",
+    aplicacao: ""
   },
   {
     id: 2,
@@ -128,7 +134,10 @@ export const mockRequests: PurchaseRequest[] = [
         conditions: "Pagamento em 2x",
         status: "Em Cotação"
       }
-    ]
+    ],
+    centro_custo: "",
+    nome_solicitante: "",
+    aplicacao: ""
   },
   {
     id: 3,
@@ -193,7 +202,10 @@ export const mockRequests: PurchaseRequest[] = [
         conditions: "30 dias",
         status: "Rejeitado"
       }
-    ]
+    ],
+    centro_custo: "",
+    nome_solicitante: "",
+    aplicacao: ""
   },
   {
     id: 4,
@@ -211,7 +223,10 @@ export const mockRequests: PurchaseRequest[] = [
     items: [
       { id: 7, description: "Reagente X (litros)", quantity: 5 },
       { id: 8, description: "Pipetas graduadas", quantity: 20 }
-    ]
+    ],
+    centro_custo: "",
+    nome_solicitante: "",
+    aplicacao: ""
   },
   {
     id: 5,
@@ -240,7 +255,10 @@ export const mockRequests: PurchaseRequest[] = [
         approvalDate: "2023-09-13",
         rejectionReason: "Fora do orçamento trimestral"
       }
-    ]
+    ],
+    centro_custo: "",
+    nome_solicitante: "",
+    aplicacao: ""
   }
 ];
 

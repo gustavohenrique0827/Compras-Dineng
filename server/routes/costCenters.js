@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
@@ -6,7 +5,7 @@ const { pool } = require('../db');
 // Obter todos os centros de custo
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM centros_custo ORDER BY codigo');
+    const [rows] = await pool.query('SELECT * FROM compra_centro_custo ORDER BY id_cc');
     res.json(rows);
   } catch (error) {
     console.error('Erro ao buscar centros de custo:', error);
@@ -15,14 +14,14 @@ router.get('/', async (req, res) => {
 });
 
 // Obter centro de custo por ID
-router.get('/:id', async (req, res) => {
+router.get('/:id_cc', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM centros_custo WHERE id = ?', [req.params.id]);
-    
+    const [rows] = await pool.query('SELECT * FROM compra_centro_custo WHERE id_cc = ?', [req.params.id_cc]);
+
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Centro de custo não encontrado' });
     }
-    
+
     res.json(rows[0]);
   } catch (error) {
     console.error('Erro ao buscar centro de custo:', error);
@@ -32,26 +31,24 @@ router.get('/:id', async (req, res) => {
 
 // Criar novo centro de custo
 router.post('/', async (req, res) => {
-  const { codigo, descricao, ativo = true } = req.body;
-  
-  if (!codigo || !descricao) {
-    return res.status(400).json({ success: false, message: 'Código e descrição são obrigatórios' });
+  const { id, descricao, id_cc, ativo } = req.body;
+
+  if (!id_cc || !descricao) {
+    return res.status(400).json({ success: false, message: 'Código (id_cc) e descrição são obrigatórios' });
   }
-  
+
   try {
-    // Verificar se código já existe
-    const [existingCenter] = await pool.query('SELECT id FROM centros_custo WHERE codigo = ?', [codigo]);
-    
+    const [existingCenter] = await pool.query('SELECT id FROM compra_centro_custo WHERE id_cc = ?', [id_cc]);
+
     if (existingCenter.length > 0) {
       return res.status(400).json({ success: false, message: 'Código já cadastrado' });
     }
-    
-    // Inserir novo centro de custo
+
     const [result] = await pool.query(
-      'INSERT INTO centros_custo (codigo, descricao, ativo) VALUES (?, ?, ?)',
-      [codigo, descricao, ativo ? 1 : 0]
+      'INSERT INTO compra_centro_custo (id, descricao, id_cc, ativo) VALUES (?, ?, ?, ?)',
+      [id, descricao, id_cc, ativo ? 1 : 0]
     );
-    
+
     res.status(201).json({ success: true, id: result.insertId });
   } catch (error) {
     console.error('Erro ao criar centro de custo:', error);
@@ -60,38 +57,26 @@ router.post('/', async (req, res) => {
 });
 
 // Atualizar centro de custo
-router.put('/:id', async (req, res) => {
-  const { codigo, descricao, ativo } = req.body;
-  const id = req.params.id;
-  
-  if (!codigo || !descricao) {
-    return res.status(400).json({ success: false, message: 'Código e descrição são obrigatórios' });
+router.put('/:id_cc', async (req, res) => {
+  const { id, descricao, ativo } = req.body;
+  const { id_cc } = req.params;
+
+  if (!id || !descricao) {
+    return res.status(400).json({ success: false, message: 'Código (id) e descrição são obrigatórios' });
   }
-  
+
   try {
-    // Verificar se o centro de custo existe
-    const [existingCenter] = await pool.query('SELECT id FROM centros_custo WHERE id = ?', [id]);
-    
+    const [existingCenter] = await pool.query('SELECT id FROM compra_centro_custo WHERE id_cc = ?', [id_cc]);
+
     if (existingCenter.length === 0) {
       return res.status(404).json({ success: false, message: 'Centro de custo não encontrado' });
     }
-    
-    // Verificar se o código já está em uso por outro centro de custo
-    const [codeExists] = await pool.query(
-      'SELECT id FROM centros_custo WHERE codigo = ? AND id != ?',
-      [codigo, id]
-    );
-    
-    if (codeExists.length > 0) {
-      return res.status(400).json({ success: false, message: 'Código já está em uso por outro centro de custo' });
-    }
-    
-    // Atualizar centro de custo
+
     await pool.query(
-      'UPDATE centros_custo SET codigo = ?, descricao = ?, ativo = ? WHERE id = ?',
-      [codigo, descricao, ativo ? 1 : 0, id]
+      'UPDATE compra_centro_custo SET id = ?, descricao = ?, ativo = ? WHERE id_cc = ?',
+      [id, descricao, ativo ? 1 : 0, id_cc]
     );
-    
+
     res.json({ success: true, message: 'Centro de custo atualizado com sucesso' });
   } catch (error) {
     console.error('Erro ao atualizar centro de custo:', error);
@@ -100,14 +85,14 @@ router.put('/:id', async (req, res) => {
 });
 
 // Remover centro de custo
-router.delete('/:id', async (req, res) => {
+router.delete('/:id_cc', async (req, res) => {
   try {
-    const [result] = await pool.query('DELETE FROM centros_custo WHERE id = ?', [req.params.id]);
-    
+    const [result] = await pool.query('DELETE FROM compra_centro_custo WHERE id_cc = ?', [req.params.id_cc]);
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Centro de custo não encontrado' });
     }
-    
+
     res.json({ success: true, message: 'Centro de custo removido com sucesso' });
   } catch (error) {
     console.error('Erro ao remover centro de custo:', error);

@@ -95,7 +95,7 @@ const Suppliers = () => {
   };
   return <div className="min-h-screen bg-background">
       <Navbar />
-      <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
+      <main className={`pb-20-1 ${isMobile ? 'pt-20-1' : 'ml-64-1'}`}>
         <div className="">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">

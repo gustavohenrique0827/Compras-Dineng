@@ -92,14 +92,19 @@ const getNivelAcessoByCargo = (cargo) => {
   const nivel = cargoParaNivel[cargoLower] || 'amarelo';
   return getPermissoesByNivel(nivel);
 };
-
 // GET TODOS FUNCIONÁRIOS
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
-             n.descricao AS nivel_acesso, n.nivel, n.permissoes
-      FROM tb_funcionarios f LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
+      SELECT 
+        f.id, f.nome, f.email, f.cargo, f.status as ativo, 
+        f.departamento, f.matricula,
+        n.descricao AS nivel_acesso, n.nivel,
+        n.compra_impeditivos, n.compra_consumo, n.compra_estoque,
+        n.compra_locais, n.compra_investimentos, n.compra_alojamentos,
+        n.compra_supermercados, n.aprova_solicitacao
+      FROM tb_funcionarios f 
+      LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
     `);
     res.json(rows);
   } catch (err) {
@@ -112,9 +117,15 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT f.id, f.nome, f.email, f.cargo, f.status as ativo, f.departamento, f.matricula,
-             n.descricao AS nivel_acesso, n.nivel, n.permissoes
-      FROM tb_funcionarios f LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
+      SELECT 
+        f.id, f.nome, f.email, f.cargo, f.status as ativo, 
+        f.departamento, f.matricula,
+        n.descricao AS nivel_acesso, n.nivel,
+        n.compra_impeditivos, n.compra_consumo, n.compra_estoque,
+        n.compra_locais, n.compra_investimentos, n.compra_alojamentos,
+        n.compra_supermercados, n.aprova_solicitacao
+      FROM tb_funcionarios f 
+      LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
       WHERE f.id = ?
     `, [req.params.id]);
 
@@ -128,14 +139,18 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ message: 'Erro ao buscar funcionário' });
   }
 });
-
 // LOGIN
 router.post('/login', async (req, res) => {
   const { email, senha } = req.body;
   try {
     const [users] = await pool.query(`
-      SELECT f.id, f.nome, f.email, f.cargo, f.status, f.departamento, f.matricula,
-             n.descricao AS nivel_acesso, n.nivel
+      SELECT 
+        f.id, f.nome, f.email, f.cargo, f.status, 
+        f.departamento, f.matricula,
+        n.descricao AS nivel_acesso, n.nivel,
+        n.compra_impeditivos, n.compra_consumo, n.compra_estoque,
+        n.compra_locais, n.compra_investimentos, n.compra_alojamentos,
+        n.compra_supermercados, n.aprova_solicitacao
       FROM tb_funcionarios f
       LEFT JOIN nivel_acesso n ON f.matricula = n.mat_funcionario
       WHERE f.email = ? AND f.senha = ? AND f.status = 1
@@ -146,26 +161,18 @@ router.post('/login', async (req, res) => {
     }
 
     const user = users[0];
+    
+    user.permissoes = {
+      compra_impeditivos: user.compra_impeditivos,
+      compra_consumo: user.compra_consumo,
+      compra_estoque: user.compra_estoque,
+      compra_locais: user.compra_locais,
+      compra_investimentos: user.compra_investimentos,
+      compra_alojamentos: user.compra_alojamentos,
+      compra_supermercados: user.compra_supermercados,
+      aprova_solicitacao: user.aprova_solicitacao
+    };
 
-    const [nivel] = await pool.query(`
-      SELECT 
-        compra_impeditivos, compra_consumo, compra_estoque, compra_locais,
-        compra_investimentos, compra_alojamentos, compra_supermercados,
-        aprova_solicitacao
-      FROM nivel_acesso
-      WHERE mat_funcionario = ?
-    `, [user.matricula]);
-
-    user.permissoes = nivel.length > 0 ? {
-      compra_impeditivos: nivel[0].compra_impeditivos ? 1 : 0,
-      compra_consumo: nivel[0].compra_consumo ? 1 : 0,
-      compra_estoque: nivel[0].compra_estoque ? 1 : 0,
-      compra_locais: nivel[0].compra_locais ? 1 : 0,
-      compra_investimentos: nivel[0].compra_investimentos ? 1 : 0,
-      compra_alojamentos: nivel[0].compra_alojamentos ? 1 : 0,
-      compra_supermercados: nivel[0].compra_supermercados ? 1 : 0,
-      aprova_solicitacao: nivel[0].aprova_solicitacao ? 1 : 0
-    } : null;
 
     res.json({ 
       success: true, 
@@ -348,15 +355,17 @@ router.post('/', async (req, res) => {
               compra_supermercados, aprova_solicitacao
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-              matricula, permissoesInfo.nivel, permissoesInfo.descricao,
-              permissoesInfo.permissoes.compra_impeditivos,
-              permissoesInfo.permissoes.compra_consumo,
-              permissoesInfo.permissoes.compra_estoque,
-              permissoesInfo.permissoes.compra_locais,
-              permissoesInfo.permissoes.compra_investimentos,
-              permissoesInfo.permissoes.compra_alojamentos,
-              permissoesInfo.permissoes.compra_supermercados,
-              permissoesInfo.permissoes.aprova_solicitacao
+           matricula,
+      permissoesInfo.nivel,
+      permissoesInfo.descricao,
+      permissoesInfo.permissoes.compra_impeditivos,
+      permissoesInfo.permissoes.compra_consumo,
+      permissoesInfo.permissoes.compra_estoque,
+      permissoesInfo.permissoes.compra_locais,
+      permissoesInfo.permissoes.compra_investimentos,
+      permissoesInfo.permissoes.compra_alojamentos,
+      permissoesInfo.permissoes.compra_supermercados,
+      permissoesInfo.permissoes.aprova_solicitacao
             ]
           );
         }
