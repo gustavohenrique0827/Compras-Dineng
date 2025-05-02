@@ -6,7 +6,7 @@ const { pool } = require('../db');
 // Obter todas as solicitações
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM compra_solicitacao');
+    const [rows] = await pool.query('SELECT * FROM solicitacoes');
     res.json(rows);
   } catch (error) {
     console.error('Erro ao buscar solicitações:', error);
@@ -18,20 +18,20 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [request] = await pool.query('SELECT * FROM compra_solicitacao WHERE id = ?', [id]);
+    const [request] = await pool.query('SELECT * FROM solicitacoes WHERE id = ?', [id]);
     
     if (request.length === 0) {
       return res.status(404).json({ message: 'Solicitação não encontrada' });
     }
     
     // Buscar itens relacionados
-    const [items] = await pool.query('SELECT * FROM compra_tb_itens WHERE solicitacao_id = ?', [id]);
+    const [items] = await pool.query('SELECT * FROM itens WHERE solicitacao_id = ?', [id]);
     
     // Buscar aprovações relacionadas
     const [approvals] = await pool.query('SELECT * FROM aprovacoes WHERE solicitacao_id = ?', [id]);
     
     // Buscar cotações relacionadas
-    const [quotes] = await pool.query('SELECT * FROM compra_cotacao WHERE solicitacao_id = ?', [id]);
+    const [quotes] = await pool.query('SELECT * FROM cotacoes WHERE solicitacao_id = ?', [id]);
     
     res.json({
       ...request[0],
@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
     
     // Inserir solicitação principal
     const [result] = await connection.query(
-      `INSERT INTO compra_solicitacao 
+      `INSERT INTO solicitacoes 
        (nome_solicitante, aplicacao, centro_custo, data_solicitacao, 
         local_entrega, prazo_entrega, categoria, motivo, prioridade, status) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -78,7 +78,7 @@ router.post('/', async (req, res) => {
     // Inserir itens
     for (const item of items) {
       await connection.query(
-        `INSERT INTO compra_tb_itens (descricao, quantidade, solicitacao_id, id_solicitante) 
+        `INSERT INTO itens (descricao, quantidade, solicitacao_id, id_solicitante) 
          VALUES (?, ?, ?, ?)`,
         [item.description, item.quantity, requestId, 1] // 1 é um ID de solicitante padrão
       );
@@ -106,7 +106,7 @@ router.put('/:id', async (req, res) => {
     
     // Verificar se a solicitação existe
     const [existingRequest] = await connection.query(
-      'SELECT * FROM compra_solicitacao WHERE id = ?',
+      'SELECT * FROM solicitacoes WHERE id = ?',
       [id]
     );
     
@@ -155,7 +155,7 @@ router.patch('/:id/status', async (req, res) => {
     
     // Atualizar status da solicitação
     await connection.query(
-      'UPDATE compra_solicitacao SET status = ? WHERE id = ?',
+      'UPDATE solicitacoes SET status = ? WHERE id = ?',
       [status, id]
     );
     

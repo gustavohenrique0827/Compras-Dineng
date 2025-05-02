@@ -67,9 +67,9 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, className }) => {
               {request.category && <StatusBadge type="category" value={request.category} />}
               {request.priority && <StatusBadge type="priority" value={request.priority} />}
             </div>
-            <h3 className="text-lg font-semibold line-clamp-1">{request.aplicacao ||'Sem título'}</h3>
+            <h3 className="text-lg font-semibold line-clamp-1">{request.application || 'Sem título'}</h3>
             <p className="text-sm text-muted-foreground line-clamp-1">
-              Solicitante: {request.nome_solicitante|| 'Não informado'}
+              Solicitante: {request.requesterName || 'Não informado'}
             </p>
           </div>
           {request.status && <StatusBadge type="status" value={request.status} />}
@@ -79,7 +79,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, className }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center text-sm text-muted-foreground">
               <FileText className="mr-1 h-4 w-4" />
-              <span>CC: { request.centro_custo|| 'N/A'}</span>
+              <span>CC: {request.costCenter || 'N/A'}</span>
             </div>
             <div className="flex items-center text-sm">
               <Clock className="mr-1 h-4 w-4" />

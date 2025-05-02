@@ -1,21 +1,25 @@
 
+import React, { useState } from 'react';
 import Navbar from '@/components/Navbar';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
-import {
-  Download
+import { 
+  BarChart3, 
+  PieChart, 
+  LineChart,
+  Download,
+  Calendar
 } from 'lucide-react';
-import { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { toast } from 'sonner';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Reports = () => {
   const isMobile = useIsMobile();
@@ -38,9 +42,9 @@ const Reports = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className={`pb-20-1 ${isMobile ? 'pt-20-1' : 'ml-64-1'}`}>
+      <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
         <div className="section-padding">
-          <div className="max-w-6xl-1 mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
                 <h2 className="text-2xl font-bold">Relatórios</h2>

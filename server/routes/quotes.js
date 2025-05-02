@@ -6,7 +6,7 @@ const { pool } = require('../db');
 // Obter todas as cotações
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM compra_cotacao');
+    const [rows] = await pool.query('SELECT * FROM cotacoes');
     res.json(rows);
   } catch (error) {
     console.error('Erro ao buscar cotações:', error);
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 router.get('/requests', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT * FROM compra_solicitacao 
+      SELECT * FROM solicitacoes 
       WHERE status = 'Aprovado' OR status = 'Em Cotação'
     `);
     res.json(rows);
@@ -32,7 +32,7 @@ router.get('/requests', async (req, res) => {
 router.get('/by-request/:requestId', async (req, res) => {
   try {
     const { requestId } = req.params;
-    const [rows] = await pool.query('SELECT * FROM compra_cotacao WHERE solicitacao_id = ?', [requestId]);
+    const [rows] = await pool.query('SELECT * FROM cotacoes WHERE solicitacao_id = ?', [requestId]);
     
     // Formatar os dados para o formato esperado pelo componente QuoteComparison
     const formattedData = [];
@@ -40,8 +40,8 @@ router.get('/by-request/:requestId', async (req, res) => {
     for (const row of rows) {
       // Buscar detalhes dos itens desta cotação
       const [items] = await pool.query(`
-        SELECT i.* FROM compra_tb_itens i
-        WHERE i.solicitacao_id = ?
+        SELECT i.* FROM itens_cotacao i
+        WHERE i.cotacao_id = ?
       `, [row.id]);
       
       // Formatar para o formato esperado
@@ -76,9 +76,9 @@ router.post('/', async (req, res) => {
     
     // Inserir cotação principal
     const [result] = await connection.query(
-      `INSERT INTO compra_cotacao 
-       (solicitacao_id, fornecedor, preco, prazo_entrega, condicoes,status) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO cotacoes 
+       (solicitacao_id, fornecedor, preco, prazo_entrega, condicoes, nivel_aprovacao, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         quoteData.requestId,
         quoteData.fornecedor || 'Fornecedor não especificado',
@@ -96,8 +96,8 @@ router.post('/', async (req, res) => {
     if (quoteData.items && quoteData.items.length > 0) {
       for (const item of quoteData.items) {
         await connection.query(
-          `INSERT INTO compra_cotacao 
-           (solicitacao_id, id_tb_item, quantidade,) 
+          `INSERT INTO itens_cotacao 
+           (cotacao_id, descricao, quantidade, valor_unitario, valor_total, fornecedor_id) 
            VALUES (?, ?, ?, ?, ?, ?)`,
           [
             quoteId,
@@ -113,7 +113,7 @@ router.post('/', async (req, res) => {
     
     // Atualizar a solicitação para status "Em Cotação" se necessário
     await connection.query(`
-      UPDATE compra_solicitacao 
+      UPDATE solicitacoes 
       SET status = 'Em Cotação' 
       WHERE id = ? AND status = 'Aprovado'
     `, [quoteData.requestId]);
@@ -135,7 +135,7 @@ router.patch('/:id/status', async (req, res) => {
     const { id } = req.params;
     const { status, approvedBy, approvalLevel } = req.body;
     
-    let query = 'UPDATE compra_cotacao SET status = ?';
+    let query = 'UPDATE cotacoes SET status = ?';
     const params = [status];
     
     if (approvedBy) {
@@ -185,21 +185,21 @@ router.post('/:requestId/finalize', async (req, res) => {
     for (const supplierId in supplierGroups) {
       // Marcar esta cotação como aprovada
       await connection.query(
-        `UPDATE compra_cotacao SET status = 'Aprovada' WHERE solicitacao_id = ? AND fornecedor_id = ?`,
+        `UPDATE cotacoes SET status = 'Aprovada' WHERE solicitacao_id = ? AND fornecedor_id = ?`,
         [requestId, supplierId]
       );
     }
     
     // Marcar outras cotações como rejeitadas
     await connection.query(
-      `UPDATE compra_cotacao SET status = 'Rejeitada' 
+      `UPDATE cotacoes SET status = 'Rejeitada' 
        WHERE solicitacao_id = ? AND status = 'Em Cotação' AND fornecedor_id NOT IN (?)`,
       [requestId, Object.keys(supplierGroups)]
     );
     
     // Atualizar status da solicitação
     await connection.query(
-      `UPDATE compra_solicitacao SET status = 'Em Compra' WHERE id = ?`,
+      `UPDATE solicitacoes SET status = 'Em Compra' WHERE id = ?`,
       [requestId]
     );
     

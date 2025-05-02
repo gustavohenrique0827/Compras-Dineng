@@ -281,7 +281,7 @@ const RequestDetail: React.FC = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className={`pb-20-1 ${isMobile ? 'pt-20-1' : 'ml-64-1'}`}>
+        <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
           <div className="section-padding">
             <div className="max-w-4xl mx-auto flex flex-col items-center justify-center py-12">
               <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -297,7 +297,7 @@ const RequestDetail: React.FC = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className={`pb-20-1 ${isMobile ? 'pt-20-1' : 'ml-64-1'}`}>
+        <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
           <div className="section-padding">
             <div className="max-w-4xl mx-auto text-center py-12">
               <h2 className="text-2xl font-bold mb-4">Solicitação não encontrada</h2>
@@ -319,7 +319,7 @@ const RequestDetail: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className={`pb-20-1 ${isMobile ? 'pt-20-1' : 'ml-64-1'}`}>
+      <main className={`pb-20 ${isMobile ? 'pt-20' : 'ml-64'}`}>
         <div className="section-padding">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
