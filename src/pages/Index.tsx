@@ -5,28 +5,12 @@ import DashboardStats from '@/components/DashboardStats';
 import RequestCard from '@/components/RequestCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { mockRequests } from '@/utils/mockData';
+import { mockRequests, PurchaseRequest as MockPurchaseRequest } from '@/utils/mockData';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 
-interface PurchaseRequest {
-  id: number;
-  nome_solicitante: string;
-  requesterName: string;
-  costCenter: string;
-  centro_custo: string;
-  application: string;
-  aplicacao: string;
-  status: string;
-  requestDate?: string;
-  deliveryLocation?: string;
-  deliveryDeadline?: string;
-  category?: string;
-  reason?: string;
-  priority?: string;
-  deadlineDate: string;
-  items: Array<{id: number, description: string, quantity: number}>;
-}
+// Use the imported type instead of defining a new one
+type PurchaseRequest = MockPurchaseRequest;
 
 const Index: React.FC = () => {
   const [requests, setRequests] = useState<PurchaseRequest[]>([]);
@@ -57,12 +41,12 @@ const Index: React.FC = () => {
           application: req.aplicacao,
           aplicacao: req.aplicacao,
           status: req.status,
-          requestDate: req.data_solicitacao,
-          deliveryLocation: req.local_entrega,
-          deliveryDeadline: req.prazo_entrega,
-          category: req.categoria,
-          reason: req.motivo,
-          priority: req.prioridade,
+          requestDate: req.data_solicitacao || new Date().toISOString().split('T')[0], // ensure required field has a default
+          deliveryLocation: req.local_entrega || '',
+          deliveryDeadline: req.prazo_entrega || new Date().toISOString().split('T')[0],
+          category: req.categoria || 'Outros',
+          reason: req.motivo || '',
+          priority: req.prioridade || 'Básica',
           deadlineDate: req.prazo_entrega || new Date().toISOString().split('T')[0],
           items: req.items || []
         }));
