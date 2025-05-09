@@ -24,6 +24,8 @@ interface PurchaseRequest {
   category?: string;
   reason?: string;
   priority?: string;
+  deadlineDate: string;
+  items: Array<{id: number, description: string, quantity: number}>;
 }
 
 const Index: React.FC = () => {
@@ -60,29 +62,16 @@ const Index: React.FC = () => {
           deliveryDeadline: req.prazo_entrega,
           category: req.categoria,
           reason: req.motivo,
-          priority: req.prioridade
+          priority: req.prioridade,
+          deadlineDate: req.prazo_entrega || new Date().toISOString().split('T')[0],
+          items: req.items || []
         }));
       } catch (error) {
         console.error('Erro ao buscar solicitações:', error);
         toast.error('Não foi possível carregar as solicitações. Usando dados simulados.');
         
-        // Map mock data to match our interface
-        return mockRequests.map((req: any) => ({
-          id: req.id,
-          nome_solicitante: req.nome_solicitante,
-          requesterName: req.nome_solicitante,
-          costCenter: req.centro_custo,
-          centro_custo: req.centro_custo,
-          application: req.aplicacao,
-          aplicacao: req.aplicacao,
-          status: req.status,
-          requestDate: req.data_solicitacao,
-          deliveryLocation: req.local_entrega,
-          deliveryDeadline: req.prazo_entrega,
-          category: req.categoria,
-          reason: req.motivo,
-          priority: req.prioridade
-        }));
+        // Return the mock data which already has all required properties
+        return mockRequests;
       }
     }
   });
