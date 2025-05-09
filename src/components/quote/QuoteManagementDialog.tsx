@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,21 +10,7 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import QuoteComparison from '../QuoteComparison';
 import { Printer, FileCheck, Download, Plus, Trash } from 'lucide-react';
-
-interface Supplier {
-  id: number;
-  name: string;
-  items: QuoteItem[];
-}
-
-interface QuoteItem {
-  id: number;
-  itemName: string;
-  description?: string;
-  quantity: number;
-  price: number;
-  supplierId: number;
-}
+import { QuoteItem, Supplier } from '@/api/quotes';
 
 interface QuoteManagementDialogProps {
   open: boolean;
@@ -105,7 +90,8 @@ const QuoteManagementDialog: React.FC<QuoteManagementDialogProps> = ({
       itemName: item.descricao,
       quantity: item.quantidade,
       price: 0,
-      supplierId: currentSupplier
+      supplierId: currentSupplier,
+      parcela: "" // Add the required parcela field with default empty string
     }));
     
     setSuppliers([...suppliers, {
@@ -165,7 +151,7 @@ const QuoteManagementDialog: React.FC<QuoteManagementDialogProps> = ({
   };
   
   // Handle quote finalization
-  const handleFinishQuote = (selectedItems: any[]) => {
+  const handleFinishQuote = (selectedItems: QuoteItem[]) => {
     toast.success('Cotação finalizada com sucesso');
     onOpenChange(false);
   };

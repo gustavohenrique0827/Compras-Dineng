@@ -4,14 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { finalizeQuote, QuoteItem } from '@/api/quotes';
+import { finalizeQuote, QuoteItem, Supplier } from '@/api/quotes';
 import { useNavigate } from 'react-router-dom';
-
-export interface Supplier {
-  id: number;
-  name: string;
-  items: QuoteItem[];
-}
 
 interface QuoteComparisonProps {
   suppliers: Supplier[];

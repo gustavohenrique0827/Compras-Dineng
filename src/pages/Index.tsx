@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FilePlus, Clock, AlertCircle, CheckCircle2, FileText, ArrowRight } from 'lucide-react';
@@ -10,18 +9,25 @@ import { mockRequests } from '@/utils/mockData';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 
-interface Request {
+interface PurchaseRequest {
   id: number;
   nome_solicitante: string;
   requesterName: string;
   costCenter: string;
   centro_custo: string;
   application: string;
+  aplicacao: string;
   status: string;
+  requestDate?: string;
+  deliveryLocation?: string;
+  deliveryDeadline?: string;
+  category?: string;
+  reason?: string;
+  priority?: string;
 }
 
 const Index: React.FC = () => {
-  const [requests, setRequests] = useState<Request[]>([]);
+  const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const {
@@ -38,11 +44,45 @@ const Index: React.FC = () => {
         }
         const requestData = await response.json();
         console.log('Dados carregados da API:', requestData);
-        return requestData;
+        
+        // Map the API response to match our PurchaseRequest interface
+        return requestData.map((req: any) => ({
+          id: req.id,
+          nome_solicitante: req.nome_solicitante,
+          requesterName: req.nome_solicitante,
+          costCenter: req.centro_custo,
+          centro_custo: req.centro_custo,
+          application: req.aplicacao,
+          aplicacao: req.aplicacao,
+          status: req.status,
+          requestDate: req.data_solicitacao,
+          deliveryLocation: req.local_entrega,
+          deliveryDeadline: req.prazo_entrega,
+          category: req.categoria,
+          reason: req.motivo,
+          priority: req.prioridade
+        }));
       } catch (error) {
         console.error('Erro ao buscar solicitações:', error);
         toast.error('Não foi possível carregar as solicitações. Usando dados simulados.');
-        return mockRequests;
+        
+        // Map mock data to match our interface
+        return mockRequests.map((req: any) => ({
+          id: req.id,
+          nome_solicitante: req.nome_solicitante,
+          requesterName: req.nome_solicitante,
+          costCenter: req.centro_custo,
+          centro_custo: req.centro_custo,
+          application: req.aplicacao,
+          aplicacao: req.aplicacao,
+          status: req.status,
+          requestDate: req.data_solicitacao,
+          deliveryLocation: req.local_entrega,
+          deliveryDeadline: req.prazo_entrega,
+          category: req.categoria,
+          reason: req.motivo,
+          priority: req.prioridade
+        }));
       }
     }
   });

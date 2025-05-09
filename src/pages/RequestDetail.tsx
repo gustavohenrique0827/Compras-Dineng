@@ -50,7 +50,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { fetchRequestById, updateStatus } from '@/api/requests';
-import { createNewQuote, updateQuote } from '@/api/quotes';
+import { createNewQuote, updateQuote, Supplier, QuoteItem } from '@/api/quotes';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const formatDate = (dateString: string) => {
@@ -96,32 +96,32 @@ const RequestDetail: React.FC = () => {
     local_entrega: ''
   });
   
-  const supplierQuotes = [
+  const supplierQuotes: Supplier[] = [
     {
       id: 1,
       name: "1",
       items: [
-        { id: 1, itemName: "Peça de reposição", quantity: 1, price: 120.00, supplierId: 1 },
-        { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1 },
-        { id: 3, itemName: "Material consumível", quantity: 1, price: 30.00, supplierId: 1 }
+        { id: 1, itemName: "Peça de reposição", quantity: 1, price: 120.00, supplierId: 1, parcela: "" },
+        { id: 2, itemName: "Ferramenta", quantity: 1, price: 80.00, supplierId: 1, parcela: "" },
+        { id: 3, itemName: "Material consumível", quantity: 1, price: 30.00, supplierId: 1, parcela: "" }
       ]
     },
     {
       id: 2,
       name: "2",
       items: [
-        { id: 4, itemName: "Peça de reposição", quantity: 1, price: 135.00, supplierId: 2 },
-        { id: 5, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2 },
-        { id: 6, itemName: "Material consumível", quantity: 1, price: 25.00, supplierId: 2 }
+        { id: 4, itemName: "Peça de reposição", quantity: 1, price: 135.00, supplierId: 2, parcela: "" },
+        { id: 5, itemName: "Ferramenta", quantity: 1, price: 75.00, supplierId: 2, parcela: "" },
+        { id: 6, itemName: "Material consumível", quantity: 1, price: 25.00, supplierId: 2, parcela: "" }
       ]
     },
     {
       id: 3,
       name: "3",
       items: [
-        { id: 7, itemName: "Peça de reposição", quantity: 1, price: 110.00, supplierId: 3 },
-        { id: 8, itemName: "Ferramenta", quantity: 1, price: 95.00, supplierId: 3 },
-        { id: 9, itemName: "Material consumível", quantity: 1, price: 35.00, supplierId: 3 }
+        { id: 7, itemName: "Peça de reposição", quantity: 1, price: 110.00, supplierId: 3, parcela: "" },
+        { id: 8, itemName: "Ferramenta", quantity: 1, price: 95.00, supplierId: 3, parcela: "" },
+        { id: 9, itemName: "Material consumível", quantity: 1, price: 35.00, supplierId: 3, parcela: "" }
       ]
     }
   ];
