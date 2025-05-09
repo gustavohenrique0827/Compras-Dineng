@@ -1,135 +1,112 @@
 
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronsUpDown, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import React, { useState, useEffect } from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-} from '@/components/ui/command';
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import { CentroCusto } from '@/utils/auth';
-import CostCenterDialog from './CostCenterDialog';
-import { toast } from 'sonner';
+} from "@/components/ui/popover";
+import { toast } from "sonner";
+
+interface CostCenterOption {
+  id: string;
+  value: string;
+  label: string;
+}
 
 interface CostCenterComboboxProps {
   value: string;
   onChange: (value: string) => void;
 }
 
-// Função para buscar centros de custo da API
-const fetchCostCenters = async (): Promise<CentroCusto[]> => {
-  try {
-    const apiUrl = `${import.meta.env.VITE_API_URL || ''}/api/cost-centers`;
-    console.log('Fetching cost centers from:', apiUrl);
-    
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      console.error('Response not OK:', response.status, response.statusText);
-      throw new Error(`Falha ao carregar centros de custo: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log('Cost centers data received:', data);
-    
-    // Garantir que o retorno seja sempre um array
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Erro ao buscar centros de custo:', error);
-    // Mostrar notificação de erro de forma amigável
-    toast.error('Não foi possível carregar os centros de custo. Usando dados locais.');
-    // Retornar array vazio em caso de erro
-    return [];
-  }
-};
-
-// Mock de dados para uso offline ou fallback
-const mockCostCenters: CentroCusto[] = [
-  { id: 1, codigo: 'CC001', descricao: 'Administrativo', ativo: true },
-  { id: 2, codigo: 'CC002', descricao: 'Produção', ativo: true },
-  { id: 3, codigo: 'CC003', descricao: 'Vendas', ativo: true },
-  { id: 4, codigo: 'CC004', descricao: 'Financeiro', ativo: true },
-  { id: 5, codigo: 'CC005', descricao: 'RH', ativo: true },
-];
-
-const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange }) => {
+const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({
+  value,
+  onChange,
+}) => {
   const [open, setOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  
-  // Buscar centros de custo da API com fallback para dados mock em caso de erro
-  const { data: costCenters = mockCostCenters, isLoading, isError } = useQuery({
-    queryKey: ['costCenters'],
-    queryFn: fetchCostCenters,
-    meta: {
-      onSettled: (data: any, error: any) => {
-        if (error) {
-          console.error('Error in useQuery:', error);
-        }
-      }
-    }
-  });
-  
+  const [options, setOptions] = useState<CostCenterOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    if (isError) {
-      console.log('Usando dados mock como fallback devido a erro na API');
-    }
-  }, [isError]);
-  
-  // Encontrar centro de custo pelo código
-  const findCostCenterName = (code: string) => {
-    if (!code) return "Selecione um centro de custo...";
-    if (!costCenters || !Array.isArray(costCenters) || costCenters.length === 0) return code;
-    
-    const center = costCenters.find(c => c.codigo === code);
-    return center ? `${center.codigo} - ${center.descricao}` : code;
-  };
-  
+    const fetchCostCenters = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+        console.log("Fetching cost centers from:", `/api/cost-centers`);
+        const response = await fetch(`${apiUrl}/api/cost-centers`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("Cost centers data:", data);
+        
+        // Ensure data is an array before mapping
+        const costCenterOptions = Array.isArray(data) ? data.map((cc: any) => ({
+          id: cc.id.toString(),
+          value: cc.codigo,
+          label: `${cc.codigo} - ${cc.nome}`,
+        })) : [];
+        
+        setOptions(costCenterOptions);
+      } catch (error) {
+        console.error("Erro ao buscar centros de custo:", error);
+        // Provide fallback data when API fails
+        setOptions([
+          { id: "1", value: "CC001", label: "CC001 - Administração" },
+          { id: "2", value: "CC002", label: "CC002 - Produção" },
+          { id: "3", value: "CC003", label: "CC003 - Marketing" },
+          { id: "4", value: "CC004", label: "CC004 - Vendas" },
+          { id: "5", value: "CC005", label: "CC005 - Compras" },
+        ]);
+        toast.error("Erro ao carregar centros de custo. Usando dados simulados.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCostCenters();
+  }, []);
+
   return (
-    <>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            {value ? findCostCenterName(value) : "Selecione um centro de custo..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between"
+        >
+          {value
+            ? options.find((option) => option.value === value)?.label || value
+            : "Selecionar Centro de Custo"}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0">
+        {isLoading ? (
+          <div className="flex items-center justify-center p-4">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+            <span className="ml-2">Carregando...</span>
+          </div>
+        ) : (
           <Command>
             <CommandInput placeholder="Buscar centro de custo..." />
-            <CommandEmpty>
-              Nenhum centro de custo encontrado.
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="mt-2 w-full"
-                onClick={() => {
-                  setOpen(false);
-                  setDialogOpen(true);
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar novo centro de custo
-              </Button>
-            </CommandEmpty>
+            <CommandEmpty>Nenhum centro de custo encontrado.</CommandEmpty>
             <CommandGroup>
-              {Array.isArray(costCenters) && costCenters.map((center) => (
+              {options.map((option) => (
                 <CommandItem
-                  key={center.id}
-                  value={center.codigo}
+                  key={option.id}
+                  value={option.value}
                   onSelect={(currentValue) => {
                     onChange(currentValue);
                     setOpen(false);
@@ -138,33 +115,17 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({ value, onChange
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === center.codigo ? "opacity-100" : "opacity-0"
+                      value === option.value ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {center.codigo} - {center.descricao}
+                  {option.label}
                 </CommandItem>
               ))}
-              <CommandItem
-                value="new-center"
-                onSelect={() => {
-                  setOpen(false);
-                  setDialogOpen(true);
-                }}
-                className="text-primary"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Adicionar novo centro de custo
-              </CommandItem>
             </CommandGroup>
           </Command>
-        </PopoverContent>
-      </Popover>
-      
-      <CostCenterDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-      />
-    </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
 
