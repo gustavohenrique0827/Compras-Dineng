@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,19 +27,29 @@ interface CostCenterComboboxProps {
   onChange: (value: string) => void;
 }
 
+// Default fallback data in case API fails
+const fallbackOptions = [
+  { id: "1", value: "CC001", label: "CC001 - Administração" },
+  { id: "2", value: "CC002", label: "CC002 - Produção" },
+  { id: "3", value: "CC003", label: "CC003 - Marketing" },
+  { id: "4", value: "CC004", label: "CC004 - Vendas" },
+  { id: "5", value: "CC005", label: "CC005 - Compras" },
+];
+
 const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({
   value,
   onChange,
 }) => {
   const [open, setOpen] = useState(false);
-  const [options, setOptions] = useState<CostCenterOption[]>([]);
+  const [options, setOptions] = useState<CostCenterOption[]>(fallbackOptions);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchCostCenters = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
-        console.log("Fetching cost centers from:", `/api/cost-centers`);
+        console.log("Fetching cost centers from:", `${apiUrl}/api/cost-centers`);
+        
         const response = await fetch(`${apiUrl}/api/cost-centers`);
         
         if (!response.ok) {
@@ -51,23 +60,20 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({
         console.log("Cost centers data:", data);
         
         // Ensure data is an array before mapping
-        const costCenterOptions = Array.isArray(data) ? data.map((cc: any) => ({
-          id: cc.id.toString(),
-          value: cc.codigo,
-          label: `${cc.codigo} - ${cc.nome}`,
-        })) : [];
-        
-        setOptions(costCenterOptions);
+        if (Array.isArray(data) && data.length > 0) {
+          const costCenterOptions = data.map((cc: any) => ({
+            id: cc.id?.toString() || "",
+            value: cc.codigo || cc.id_cc || "",
+            label: `${cc.codigo || cc.id_cc || ""} - ${cc.nome || cc.descricao || ""}`,
+          }));
+          
+          setOptions(costCenterOptions);
+        } else {
+          // If data is empty or not an array, keep using fallback
+          console.warn("API returned empty or invalid data, using fallback options");
+        }
       } catch (error) {
         console.error("Erro ao buscar centros de custo:", error);
-        // Provide fallback data when API fails
-        setOptions([
-          { id: "1", value: "CC001", label: "CC001 - Administração" },
-          { id: "2", value: "CC002", label: "CC002 - Produção" },
-          { id: "3", value: "CC003", label: "CC003 - Marketing" },
-          { id: "4", value: "CC004", label: "CC004 - Vendas" },
-          { id: "5", value: "CC005", label: "CC005 - Compras" },
-        ]);
         toast.error("Erro ao carregar centros de custo. Usando dados simulados.");
       } finally {
         setIsLoading(false);
