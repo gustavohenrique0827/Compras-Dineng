@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -83,6 +84,36 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({
     fetchCostCenters();
   }, []);
 
+  const displayValue = value 
+    ? options.find((option) => option.value === value)?.label || value
+    : "Selecionar Centro de Custo";
+
+  // Safely get children for CommandGroup ensuring we don't pass undefined or null
+  const getCommandItems = () => {
+    if (!Array.isArray(options) || options.length === 0) {
+      return [];
+    }
+    
+    return options.map((option) => (
+      <CommandItem
+        key={option.id}
+        value={option.value}
+        onSelect={(currentValue) => {
+          onChange(currentValue);
+          setOpen(false);
+        }}
+      >
+        <Check
+          className={cn(
+            "mr-2 h-4 w-4",
+            value === option.value ? "opacity-100" : "opacity-0"
+          )}
+        />
+        {option.label}
+      </CommandItem>
+    ));
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -92,9 +123,7 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({
           aria-expanded={open}
           className="w-full justify-between"
         >
-          {value
-            ? options.find((option) => option.value === value)?.label || value
-            : "Selecionar Centro de Custo"}
+          {displayValue}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -109,24 +138,7 @@ const CostCenterCombobox: React.FC<CostCenterComboboxProps> = ({
             <CommandInput placeholder="Buscar centro de custo..." />
             <CommandEmpty>Nenhum centro de custo encontrado.</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.id}
-                  value={option.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue);
-                    setOpen(false);
-                  }}
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === option.value ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {option.label}
-                </CommandItem>
-              ))}
+              {getCommandItems()}
             </CommandGroup>
           </Command>
         )}
